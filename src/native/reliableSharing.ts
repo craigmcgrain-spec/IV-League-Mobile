@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 
 type ReliableSharingModule = {
   sharePdfAsync(uri: string, dialogTitle: string): Promise<void>;
+  cleanupSharedPdfsAsync(maxAgeMs: number): Promise<void>;
+  deleteSharedPdfsAsync(filename: string): Promise<void>;
 };
 
 export type SharePdfResult =
@@ -43,5 +45,19 @@ export async function sharePdf(uri: string, dialogTitle: string): Promise<ShareP
       reason: 'error',
       message: error instanceof Error ? error.message : 'The PDF could not be shared.',
     };
+  }
+}
+
+export async function cleanupSharedPdfExports(maxAgeMs: number): Promise<void> {
+  if (Platform.OS === 'android') {
+    const nativeSharing = requireNativeModule<ReliableSharingModule>('IVLeagueReliableSharing');
+    await nativeSharing.cleanupSharedPdfsAsync(maxAgeMs);
+  }
+}
+
+export async function deleteSharedPdfExports(filename: string): Promise<void> {
+  if (Platform.OS === 'android') {
+    const nativeSharing = requireNativeModule<ReliableSharingModule>('IVLeagueReliableSharing');
+    await nativeSharing.deleteSharedPdfsAsync(filename);
   }
 }

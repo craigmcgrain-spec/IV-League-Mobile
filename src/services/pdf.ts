@@ -3,7 +3,11 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 import { needsProcedureDetails } from '../domain/workflow';
-import { sharePdf } from '../native/reliableSharing';
+import {
+  cleanupSharedPdfExports,
+  deleteSharedPdfExports,
+  sharePdf,
+} from '../native/reliableSharing';
 import type { CompletionRecord } from '../types';
 
 export function escapeHtml(value: string): string {
@@ -111,7 +115,8 @@ function scheduleReportCleanup(uri: string): void {
   }
   cleanupTimers.set(uri, setTimeout(() => {
     FileSystem.deleteAsync(uri, { idempotent: true })
-      .then(() => {
+      .then(async () => {
+        await cleanupSharedPdfExports(REPORT_MAX_AGE_MS);
         cleanupTimers.delete(uri);
         if (pendingPdfUri === uri) {
           pendingPdfUri = null;
@@ -124,6 +129,7 @@ function scheduleReportCleanup(uri: string): void {
 }
 
 export async function cleanupStaleSharedReports(now = Date.now()): Promise<void> {
+  await cleanupSharedPdfExports(REPORT_MAX_AGE_MS);
   const directory = await FileSystem.getInfoAsync(REPORT_DIRECTORY);
   if (!directory.exists) {
     return;
@@ -212,6 +218,7 @@ export async function deleteCachedReport(filename: string): Promise<void> {
     cleanupTimers.delete(uri);
   }
   await FileSystem.deleteAsync(uri, { idempotent: true });
+  await deleteSharedPdfExports(safeStoredFilename(filename));
   if (pendingPdfUri === uri) {
     pendingPdfUri = null;
   }

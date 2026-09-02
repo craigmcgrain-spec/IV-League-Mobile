@@ -745,7 +745,12 @@ function ReviewScreen({
         <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>{confirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
         <Text style={styles.confirmText}>I reviewed the client and procedure information and confirm it is accurate.</Text>
       </Pressable>
-      <Text style={styles.privacyNote}>The PDF opens in the system share sheet. Choose your preferred email app or another approved destination. A protected cache copy is retained briefly so the selected service can attach it, then removed automatically.</Text>
+      <Text style={styles.privacyNote}>
+        The PDF opens in the system share sheet. Choose your preferred email app or another approved destination.
+        {Platform.OS === 'android'
+          ? ' If Gmail does not attach it automatically, attach the same file from Downloads/IV League. Temporary copies are removed after one hour.'
+          : ' A protected cache copy is retained briefly so the selected service can attach it, then removed automatically.'}
+      </Text>
       <PrimaryButton label="Generate PDF and choose email app" onPress={generate} busy={busy} disabled={!confirmed} />
     </AppScreen>
   );

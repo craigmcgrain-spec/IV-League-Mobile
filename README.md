@@ -27,7 +27,7 @@ Patient data is held only in application memory for the active workflow. It is n
 
 ML Kit is a native dependency, so this application requires a development build or native build; it does not run inside the stock Expo Go client.
 Expo Doctor's React Native Directory metadata check is explicitly excluded for this bridge because the directory marks its New Architecture status as untested; native prebuild and platform builds remain the source of truth.
-An autolinked local Android sharing module gives Gmail both `ClipData` and a direct read grant for PDF attachments.
+An autolinked local Android sharing module hands Gmail a system MediaStore URI with `ClipData` and a direct read grant for PDF attachments.
 
 ## Setup
 
@@ -65,7 +65,7 @@ The camera permission is requested only when the scan screen is opened. Biometri
 - Completion history is encrypted at rest with SQLCipher. Its random 256-bit database key is held in platform secure storage.
 - The searchable history index retains only completion time, task, client name, facility, and procedure summary. The generated PDF contains the complete report (including date of birth, medical record number, and room), is stored as an encrypted SQLCipher value attached to that record, and can be sent again. Deleting a record also securely deletes its PDF and any materialized cache copy.
 - OCR runs on device; the application does not upload captured images.
-- Client intake information is not persisted. Shared PDFs are isolated in protected app cache so asynchronous email providers can read the attachment; the prior report is removed before another is generated and stale reports are removed after one hour.
+- Client intake information is not persisted. Shared PDFs are isolated in protected app cache so asynchronous email providers can read the attachment. On Android 10 and newer, a system MediaStore copy is created for reliable email handoff. Temporary copies are removed after one hour, on the next app cleanup, or when their history record is deleted.
 - PDF filenames contain the facility and client name as requested. Treat the attachment name as sensitive client information and use only approved email recipients and services.
 - Sensitive screens are protected with the platform secure-screen facility, and leaving the foreground requires authentication again.
 - Recipients selected in the system share sheet control any copies created outside the app.
