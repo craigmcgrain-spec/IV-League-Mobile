@@ -62,6 +62,8 @@ ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 }
 
 let pendingPdfUri: string | null = null;
+const REPORT_DIRECTORY = `${FileSystem.cacheDirectory ?? ''}iv-league-reports/`;
+const REPORT_MAX_AGE_MS = 60 * 60 * 1000;
 
 function sanitizeFilenamePart(value: string, fallback: string): string {
   const sanitized = value
@@ -84,7 +86,7 @@ function attachmentUri(record: CompletionRecord): string {
   if (!FileSystem.cacheDirectory) {
     throw new Error('App cache is unavailable');
   }
-  return `${FileSystem.cacheDirectory}${buildAttachmentFilename(record)}`;
+  return `${REPORT_DIRECTORY}${buildAttachmentFilename(record)}`;
 }
 
 async function retryPendingCleanup(): Promise<void> {
@@ -95,14 +97,34 @@ async function retryPendingCleanup(): Promise<void> {
   pendingPdfUri = null;
 }
 
+export async function cleanupStaleSharedReports(now = Date.now()): Promise<void> {
+  const directory = await FileSystem.getInfoAsync(REPORT_DIRECTORY);
+  if (!directory.exists) {
+    return;
+  }
+  const files = await FileSystem.readDirectoryAsync(REPORT_DIRECTORY);
+  await Promise.all(files.map(async (file) => {
+    const uri = `${REPORT_DIRECTORY}${file}`;
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists && info.modificationTime && now - info.modificationTime * 1000 >= REPORT_MAX_AGE_MS) {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      if (pendingPdfUri === uri) {
+        pendingPdfUri = null;
+      }
+    }
+  }));
+}
+
 export async function generateAndShareReport(
   record: CompletionRecord,
   onGenerated?: () => Promise<void>,
-): Promise<{ cleanedUp: boolean }> {
+): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is unavailable');
   }
   await retryPendingCleanup();
+  await cleanupStaleSharedReports();
+  await FileSystem.makeDirectoryAsync(REPORT_DIRECTORY, { intermediates: true });
   const printed = await Print.printToFileAsync({ html: buildReportHtml(record) });
   const uri = attachmentUri(record);
   try {
@@ -124,11 +146,5 @@ export async function generateAndShareReport(
     await FileSystem.deleteAsync(uri, { idempotent: true });
     pendingPdfUri = null;
     throw error;
-  }
-  try {
-    await retryPendingCleanup();
-    return { cleanedUp: true };
-  } catch {
-    return { cleanedUp: false };
   }
 }

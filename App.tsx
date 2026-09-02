@@ -27,7 +27,7 @@ import {
   setBiometricLogin,
   verifyPassword,
 } from './src/services/auth';
-import { generateAndShareReport } from './src/services/pdf';
+import { cleanupStaleSharedReports, generateAndShareReport } from './src/services/pdf';
 import {
   deleteCompletedProcedure,
   HISTORY_PAGE_SIZE,
@@ -87,6 +87,9 @@ export default function App() {
 
   useEffect(() => {
     refreshAccount();
+    cleanupStaleSharedReports().catch(() => {
+      Alert.alert('Privacy cleanup warning', 'An older temporary report could not be removed from the protected app cache.');
+    });
   }, []);
 
   useEffect(() => {
@@ -663,7 +666,7 @@ function ReviewScreen({
     try {
       const record = completionRecord.current ?? { profile, client, procedure, completedAt: new Date() };
       completionRecord.current = record;
-      const result = await generateAndShareReport(record, async () => {
+      await generateAndShareReport(record, async () => {
         if (savedHistoryId !== null) {
           return;
         }
@@ -675,9 +678,6 @@ function ReviewScreen({
           Alert.alert('History not saved', 'The PDF was created, but its encrypted completion summary could not be saved.');
         }
       });
-      if (!result.cleanedUp) {
-        Alert.alert('Privacy cleanup warning', 'The report was shared, but its temporary app copy could not be deleted. Do not create another report until cleanup succeeds.');
-      }
       onComplete();
     } catch {
       Alert.alert('PDF could not be shared', 'The completion record could not be generated or the share sheet is unavailable.');
@@ -706,7 +706,7 @@ function ReviewScreen({
         <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>{confirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
         <Text style={styles.confirmText}>I reviewed the client and procedure information and confirm it is accurate.</Text>
       </Pressable>
-      <Text style={styles.privacyNote}>The PDF opens in the system share sheet. Choose your preferred email app or another approved destination. The temporary app copy is deleted afterward.</Text>
+      <Text style={styles.privacyNote}>The PDF opens in the system share sheet. Choose your preferred email app or another approved destination. A protected cache copy is retained briefly so the selected service can attach it, then removed automatically.</Text>
       <PrimaryButton label="Generate PDF and choose email app" onPress={generate} busy={busy} disabled={!confirmed} />
     </AppScreen>
   );
