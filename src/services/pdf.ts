@@ -3,6 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 import { needsProcedureDetails } from '../domain/workflow';
+import { sharePdf } from '../native/reliableSharing';
 import type { CompletionRecord } from '../types';
 
 export function escapeHtml(value: string): string {
@@ -171,11 +172,10 @@ export async function generateAndShareReport(
 
 async function shareReportUri(uri: string): Promise<void> {
   try {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: 'Email or share IV League completion record',
-      UTI: 'com.adobe.pdf',
-    });
+    const result = await sharePdf(uri, 'Email or share IV League completion record');
+    if (!result.ok) {
+      throw new Error(result.message);
+    }
     scheduleReportCleanup(uri);
   } catch (error) {
     await FileSystem.deleteAsync(uri, { idempotent: true });

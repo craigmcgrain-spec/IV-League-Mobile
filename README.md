@@ -12,7 +12,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
 - Single-choice size, side, and location controls for IV/PICC procedures
 - Explicit final confirmation before generating a letterheaded PDF
-- Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename and provider-safe temporary file retention
+- Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename, provider-safe temporary file retention, and reliable Android URI grants
 - Authenticated, paged completed-procedure history with encrypted PDF resend and secure per-record deletion
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
@@ -27,6 +27,7 @@ Patient data is held only in application memory for the active workflow. It is n
 
 ML Kit is a native dependency, so this application requires a development build or native build; it does not run inside the stock Expo Go client.
 Expo Doctor's React Native Directory metadata check is explicitly excluded for this bridge because the directory marks its New Architecture status as untested; native prebuild and platform builds remain the source of truth.
+An autolinked local Android sharing module gives Gmail both `ClipData` and a direct read grant for PDF attachments.
 
 ## Setup
 
