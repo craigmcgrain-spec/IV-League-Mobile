@@ -29,6 +29,12 @@ import {
 } from './src/services/auth';
 import { generateAndShareReport } from './src/services/pdf';
 import {
+  deleteCompletedProcedure,
+  HISTORY_PAGE_SIZE,
+  listCompletedProcedures,
+  saveCompletedProcedure,
+} from './src/services/history';
+import {
   EMPTY_CLIENT,
   GAUGES,
   LOCATIONS,
@@ -41,6 +47,8 @@ import {
 } from './src/domain/workflow';
 import type {
   Client,
+  CompletedProcedure,
+  CompletionRecord,
   Procedure,
   ProcedureLocation,
   ProcedureSide,
@@ -62,6 +70,11 @@ export default function App() {
   const [client, setClient] = useState<Client>(EMPTY_CLIENT);
   const [procedure, setProcedure] = useState<Procedure>({ task: null, size: null, side: null, location: null });
   const [ocrNotice, setOcrNotice] = useState(false);
+  const [completions, setCompletions] = useState<CompletedProcedure[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
   const refreshAccount = () => {
     setLoading(true);
@@ -83,6 +96,37 @@ export default function App() {
       }
     });
     return () => subscription.remove();
+  }, [authenticated]);
+
+  useEffect(() => {
+    let active = true;
+    if (!authenticated) {
+      return () => {
+        active = false;
+      };
+    }
+    setHistoryLoading(true);
+    setHistoryError(false);
+    listCompletedProcedures()
+      .then((page) => {
+        if (active) {
+          setCompletions(page.records);
+          setHistoryHasMore(page.hasMore);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setHistoryError(true);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setHistoryLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, [authenticated]);
 
   const resetWorkflow = () => {
@@ -126,7 +170,29 @@ export default function App() {
       <HomeScreen
         profile={account.profile}
         biometricsEnabled={account.biometricsEnabled}
+        completions={completions}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        historyHasMore={historyHasMore}
+        historyLoadingMore={historyLoadingMore}
         onBiometricChange={(enabled) => setAccount({ ...account, biometricsEnabled: enabled })}
+        onDeleteCompletion={async (id) => {
+          await deleteCompletedProcedure(id);
+          setCompletions((current) => current.filter((record) => record.id !== id));
+        }}
+        onLoadMore={async () => {
+          if (historyLoadingMore) {
+            return;
+          }
+          setHistoryLoadingMore(true);
+          try {
+            const page = await listCompletedProcedures(completions.length);
+            setCompletions((current) => [...current, ...page.records]);
+            setHistoryHasMore(page.hasMore);
+          } finally {
+            setHistoryLoadingMore(false);
+          }
+        }}
         onStart={() => setRoute('intake')}
         onLogout={() => {
           resetWorkflow();
@@ -179,6 +245,7 @@ export default function App() {
         profile={account.profile}
         client={client}
         procedure={procedure}
+        onHistorySaved={(record) => setCompletions((current) => [record, ...current])}
         onBack={() => setRoute('procedure')}
         onComplete={() => setRoute('complete')}
       />
@@ -304,13 +371,27 @@ function LoginScreen({
 function HomeScreen({
   profile,
   biometricsEnabled,
+  completions,
+  historyLoading,
+  historyError,
+  historyHasMore,
+  historyLoadingMore,
   onBiometricChange,
+  onDeleteCompletion,
+  onLoadMore,
   onStart,
   onLogout,
 }: {
   profile: UserProfile;
   biometricsEnabled: boolean;
+  completions: CompletedProcedure[];
+  historyLoading: boolean;
+  historyError: boolean;
+  historyHasMore: boolean;
+  historyLoadingMore: boolean;
   onBiometricChange: (enabled: boolean) => void;
+  onDeleteCompletion: (id: number) => Promise<void>;
+  onLoadMore: () => Promise<void>;
   onStart: () => void;
   onLogout: () => void;
 }) {
@@ -339,6 +420,25 @@ function HomeScreen({
     }
   };
 
+  const confirmDelete = (record: CompletedProcedure) => {
+    Alert.alert(
+      'Delete completion record?',
+      `${record.task} for ${record.clientName} will be permanently removed from this device.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            onDeleteCompletion(record.id).catch(() => {
+              Alert.alert('Record not deleted', 'The encrypted completion record could not be removed.');
+            });
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <AppScreen>
       <BrandHeader subtitle={`${profile.name}, ${profile.credentials}`} />
@@ -359,6 +459,39 @@ function HomeScreen({
           </View>
         </Pressable>
       ) : null}
+      <View style={styles.historySection}>
+        <Text style={styles.historyHeading}>Completed procedures</Text>
+        <Text style={styles.privacyNote}>Encrypted on this device. Date of birth, medical record number, and room are not retained.</Text>
+        {historyLoading ? <ActivityIndicator color={COLORS.teal} /> : null}
+        {historyError ? <Text style={styles.historyError}>Completion history could not be opened securely.</Text> : null}
+        {!historyLoading && !historyError && completions.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Text style={styles.emptyHistoryTitle}>No completed procedures yet</Text>
+            <Text style={styles.settingBody}>Records appear here after a PDF is created.</Text>
+          </View>
+        ) : null}
+        {completions.map((record) => (
+          <View key={record.id} style={styles.historyCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.historyTask}>{record.task}</Text>
+              <Text style={styles.historyClient}>{record.clientName}</Text>
+              <Text style={styles.historyMeta}>{record.facility} · {new Date(record.completedAt).toLocaleString()}</Text>
+              {record.details ? <Text style={styles.historyDetails}>{record.details}</Text> : null}
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${record.task} for ${record.clientName}`} onPress={() => confirmDelete(record)} hitSlop={10}>
+              <Text style={styles.deleteText}>Delete</Text>
+            </Pressable>
+          </View>
+        ))}
+        {historyHasMore ? (
+          <SecondaryButton
+            label={historyLoadingMore ? 'Loading...' : `Load ${HISTORY_PAGE_SIZE} older procedures`}
+            onPress={() => onLoadMore().catch(() => {
+              Alert.alert('History not loaded', 'Older completion records could not be opened securely.');
+            })}
+          />
+        ) : null}
+      </View>
       <SecondaryButton label="Sign out" onPress={onLogout} />
     </AppScreen>
   );
@@ -505,17 +638,21 @@ function ReviewScreen({
   profile,
   client,
   procedure,
+  onHistorySaved,
   onBack,
   onComplete,
 }: {
   profile: UserProfile;
   client: Client;
   procedure: Procedure;
+  onHistorySaved: (record: CompletedProcedure) => void;
   onBack: () => void;
   onComplete: () => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [savedHistoryId, setSavedHistoryId] = useState<number | null>(null);
+  const completionRecord = useRef<CompletionRecord | null>(null);
 
   const generate = async () => {
     if (!confirmed) {
@@ -524,7 +661,20 @@ function ReviewScreen({
     }
     setBusy(true);
     try {
-      const result = await generateAndShareReport({ profile, client, procedure, completedAt: new Date() });
+      const record = completionRecord.current ?? { profile, client, procedure, completedAt: new Date() };
+      completionRecord.current = record;
+      const result = await generateAndShareReport(record, async () => {
+        if (savedHistoryId !== null) {
+          return;
+        }
+        try {
+          const saved = await saveCompletedProcedure(record);
+          setSavedHistoryId(saved.id);
+          onHistorySaved(saved);
+        } catch {
+          Alert.alert('History not saved', 'The PDF was created, but its encrypted completion summary could not be saved.');
+        }
+      });
       if (!result.cleanedUp) {
         Alert.alert('Privacy cleanup warning', 'The report was shared, but its temporary app copy could not be deleted. Do not create another report until cleanup succeeds.');
       }
@@ -745,4 +895,15 @@ const styles = StyleSheet.create({
   privacyNote: { color: COLORS.muted, fontSize: 12, lineHeight: 18 },
   successIcon: { width: 76, height: 76, borderRadius: 38, backgroundColor: COLORS.paleTeal, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 60 },
   successCheck: { color: COLORS.teal, fontSize: 38, fontWeight: '900' },
+  historySection: { gap: 12, marginTop: 4 },
+  historyHeading: { color: COLORS.navy, fontSize: 22, fontWeight: '800' },
+  historyError: { color: '#9A3412', backgroundColor: '#FFF0E8', borderRadius: 12, padding: 14, fontWeight: '600' },
+  emptyHistory: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 18, gap: 4 },
+  emptyHistoryTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  historyCard: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  historyTask: { color: COLORS.teal, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  historyClient: { color: COLORS.navy, fontSize: 17, fontWeight: '800', marginTop: 4 },
+  historyMeta: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  historyDetails: { color: COLORS.text, fontSize: 13, fontWeight: '600', marginTop: 5 },
+  deleteText: { color: '#B42318', fontSize: 13, fontWeight: '700' },
 });

@@ -29,3 +29,12 @@ export interface CompletionRecord {
   procedure: Procedure;
   completedAt: Date;
 }
+
+export interface CompletedProcedure {
+  id: number;
+  completedAt: string;
+  task: ProcedureTask;
+  clientName: string;
+  facility: string;
+  details: string;
+}

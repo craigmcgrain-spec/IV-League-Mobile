@@ -95,7 +95,10 @@ async function retryPendingCleanup(): Promise<void> {
   pendingPdfUri = null;
 }
 
-export async function generateAndShareReport(record: CompletionRecord): Promise<{ cleanedUp: boolean }> {
+export async function generateAndShareReport(
+  record: CompletionRecord,
+  onGenerated?: () => Promise<void>,
+): Promise<{ cleanedUp: boolean }> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is unavailable');
   }
@@ -110,6 +113,7 @@ export async function generateAndShareReport(record: CompletionRecord): Promise<
     throw error;
   }
   pendingPdfUri = uri;
+  await onGenerated?.();
   try {
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',

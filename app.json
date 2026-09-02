@@ -46,7 +46,13 @@
         }
       ],
       "expo-local-authentication",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ]
     ]
   }
 }
