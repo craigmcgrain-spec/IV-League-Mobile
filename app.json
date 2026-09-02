@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "IV League",
+    "slug": "iv-league-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ivleague.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "IV League uses the camera only to recognize client intake text for your review."
+      }
+    },
+    "android": {
+      "package": "com.ivleague.mobile",
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow IV League to scan client intake text for your review.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Allow IV League to use Face ID for secure login."
+        }
+      ],
+      "expo-local-authentication",
+      "expo-sharing",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
+      "react-native-quick-crypto"
+    ]
+  }
+}
