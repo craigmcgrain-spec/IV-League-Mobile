@@ -12,7 +12,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
 - Single-choice size, side, and location controls for IV/PICC procedures
 - Explicit final confirmation before generating a letterheaded PDF
-- Native PDF share sheet with temporary app file deletion after sharing
+- Native PDF share sheet for the user's preferred email or sharing service, with a PHI-free attachment filename and temporary app file deletion afterward
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
 Patient data is held only in application memory for the active workflow. It is not logged or persisted by the app. Use demo-safe data during development.
@@ -53,7 +53,7 @@ The camera permission is requested only when the scan screen is opened. Biometri
 3. Start intake and enter fields manually or scan a clearly labeled demo document.
 4. Review and edit all intake fields.
 5. Choose a procedure and, for IV/PICC, choose one size, side, and location.
-6. Review the completion record, confirm accuracy, and generate/share the PDF.
+6. Review the completion record, confirm accuracy, generate the PDF, and choose the preferred email provider from the system share sheet.
 
 ## Security notes
 

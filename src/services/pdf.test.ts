@@ -35,5 +35,6 @@ describe('PDF report', () => {
     expect(html).toContain('20ga');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
+    expect(html).not.toContain('Demo Patient.pdf');
   });
 });

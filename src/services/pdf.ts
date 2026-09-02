@@ -63,6 +63,14 @@ ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 
 let pendingPdfUri: string | null = null;
 
+function attachmentUri(completedAt: Date): string {
+  if (!FileSystem.cacheDirectory) {
+    throw new Error('App cache is unavailable');
+  }
+  const date = completedAt.toISOString().slice(0, 10);
+  return `${FileSystem.cacheDirectory}IV-League-Completion-${date}.pdf`;
+}
+
 async function retryPendingCleanup(): Promise<void> {
   if (!pendingPdfUri) {
     return;
@@ -76,12 +84,20 @@ export async function generateAndShareReport(record: CompletionRecord): Promise<
     throw new Error('Sharing is unavailable');
   }
   await retryPendingCleanup();
-  const { uri } = await Print.printToFileAsync({ html: buildReportHtml(record) });
+  const printed = await Print.printToFileAsync({ html: buildReportHtml(record) });
+  const uri = attachmentUri(record.completedAt);
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    await FileSystem.moveAsync({ from: printed.uri, to: uri });
+  } catch (error) {
+    await FileSystem.deleteAsync(printed.uri, { idempotent: true });
+    throw error;
+  }
   pendingPdfUri = uri;
   try {
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
-      dialogTitle: 'Share IV League completion record',
+      dialogTitle: 'Email or share IV League completion record',
       UTI: 'com.adobe.pdf',
     });
   } catch (error) {

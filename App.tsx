@@ -556,8 +556,8 @@ function ReviewScreen({
         <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>{confirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
         <Text style={styles.confirmText}>I reviewed the client and procedure information and confirm it is accurate.</Text>
       </Pressable>
-      <Text style={styles.privacyNote}>The PDF opens in the system share sheet and its temporary app copy is deleted afterward.</Text>
-      <PrimaryButton label="Generate and share PDF" onPress={generate} busy={busy} disabled={!confirmed} />
+      <Text style={styles.privacyNote}>The PDF opens in the system share sheet. Choose your preferred email app or another approved destination. The temporary app copy is deleted afterward.</Text>
+      <PrimaryButton label="Generate PDF and choose email app" onPress={generate} busy={busy} disabled={!confirmed} />
     </AppScreen>
   );
 }
@@ -567,7 +567,7 @@ function CompleteScreen({ onDone }: { onDone: () => void }) {
     <AppScreen>
       <View style={styles.successIcon}><Text style={styles.successCheck}>✓</Text></View>
       <Text style={[styles.title, { textAlign: 'center' }]}>Completion record created</Text>
-      <Text style={[styles.body, { textAlign: 'center' }]}>The client information will be cleared when you return home.</Text>
+      <Text style={[styles.body, { textAlign: 'center' }]}>The PDF was handed to your selected email or sharing service. Client information will be cleared when you return home.</Text>
       <PrimaryButton label="Return home" onPress={onDone} />
     </AppScreen>
   );
