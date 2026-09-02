@@ -12,7 +12,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
 - Single-choice size, side, and location controls for IV/PICC procedures
 - Explicit final confirmation before generating a letterheaded PDF
-- Native PDF share sheet for the user's preferred email or sharing service, with a PHI-free attachment filename and temporary app file deletion afterward
+- Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename and temporary app file deletion afterward
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
 Patient data is held only in application memory for the active workflow. It is not logged or persisted by the app. Use demo-safe data during development.
@@ -62,5 +62,6 @@ The camera permission is requested only when the scan screen is opened. Biometri
 - Account data uses `expo-secure-store` with this-device-only accessibility.
 - OCR runs on device; the application does not upload captured images.
 - Client information is not persisted and the generated PDF is deleted from the app cache after the system share sheet closes.
+- PDF filenames contain the facility and client name as requested. Treat the attachment name as sensitive client information and use only approved email recipients and services.
 - Sensitive screens are protected with the platform secure-screen facility, and leaving the foreground requires authentication again.
 - Recipients selected in the system share sheet control any copies created outside the app.

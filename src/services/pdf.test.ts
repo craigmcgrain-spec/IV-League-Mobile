@@ -1,4 +1,4 @@
-import { buildReportHtml, escapeHtml } from './pdf';
+import { buildAttachmentFilename, buildReportHtml, escapeHtml } from './pdf';
 
 jest.mock('expo-file-system/legacy', () => ({}));
 jest.mock('expo-print', () => ({}));
@@ -10,7 +10,7 @@ describe('PDF report', () => {
   });
 
   it('contains letterhead, user, client, task, and procedure details', () => {
-    const html = buildReportHtml({
+    const record = {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
@@ -26,7 +26,8 @@ describe('PDF report', () => {
         location: 'Forearm',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
-    });
+    } as const;
+    const html = buildReportHtml(record);
 
     expect(html).toContain('IV LEAGUE');
     expect(html).toContain('Demo Clinician');
@@ -35,6 +36,21 @@ describe('PDF report', () => {
     expect(html).toContain('20ga');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
-    expect(html).not.toContain('Demo Patient.pdf');
+    expect(buildAttachmentFilename(record)).toBe('Demo Medical Center_Demo Patient_2026-09-01.pdf');
+  });
+
+  it('removes path and reserved characters from the attachment name', () => {
+    expect(buildAttachmentFilename({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: '../Demo/Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo:Facility?',
+        roomNumber: '204B',
+      },
+      procedure: { task: 'Blood Draw', size: null, side: null, location: null },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    })).toBe('Demo-Facility_..-Demo-Patient_2026-09-01.pdf');
   });
 });

@@ -63,12 +63,28 @@ ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 
 let pendingPdfUri: string | null = null;
 
-function attachmentUri(completedAt: Date): string {
+function sanitizeFilenamePart(value: string, fallback: string): string {
+  const sanitized = value
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s-]+$/g, '')
+    .trim()
+    .slice(0, 60);
+  return sanitized || fallback;
+}
+
+export function buildAttachmentFilename(record: CompletionRecord): string {
+  const facility = sanitizeFilenamePart(record.client.facility, 'Facility');
+  const clientName = sanitizeFilenamePart(record.client.name, 'Client');
+  const date = record.completedAt.toISOString().slice(0, 10);
+  return `${facility}_${clientName}_${date}.pdf`;
+}
+
+function attachmentUri(record: CompletionRecord): string {
   if (!FileSystem.cacheDirectory) {
     throw new Error('App cache is unavailable');
   }
-  const date = completedAt.toISOString().slice(0, 10);
-  return `${FileSystem.cacheDirectory}IV-League-Completion-${date}.pdf`;
+  return `${FileSystem.cacheDirectory}${buildAttachmentFilename(record)}`;
 }
 
 async function retryPendingCleanup(): Promise<void> {
@@ -85,7 +101,7 @@ export async function generateAndShareReport(record: CompletionRecord): Promise<
   }
   await retryPendingCleanup();
   const printed = await Print.printToFileAsync({ html: buildReportHtml(record) });
-  const uri = attachmentUri(record.completedAt);
+  const uri = attachmentUri(record);
   try {
     await FileSystem.deleteAsync(uri, { idempotent: true });
     await FileSystem.moveAsync({ from: printed.uri, to: uri });
