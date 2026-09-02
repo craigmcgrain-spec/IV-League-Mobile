@@ -37,4 +37,6 @@ export interface CompletedProcedure {
   clientName: string;
   facility: string;
   details: string;
+  hasPdf: boolean;
+  pdfFilename: string | null;
 }

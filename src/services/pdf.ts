@@ -64,6 +64,7 @@ ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 let pendingPdfUri: string | null = null;
 const REPORT_DIRECTORY = `${FileSystem.cacheDirectory ?? ''}iv-league-reports/`;
 const REPORT_MAX_AGE_MS = 60 * 60 * 1000;
+const cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function sanitizeFilenamePart(value: string, fallback: string): string {
   const sanitized = value
@@ -94,7 +95,31 @@ async function retryPendingCleanup(): Promise<void> {
     return;
   }
   await FileSystem.deleteAsync(pendingPdfUri, { idempotent: true });
+  const timer = cleanupTimers.get(pendingPdfUri);
+  if (timer) {
+    clearTimeout(timer);
+    cleanupTimers.delete(pendingPdfUri);
+  }
   pendingPdfUri = null;
+}
+
+function scheduleReportCleanup(uri: string): void {
+  const existing = cleanupTimers.get(uri);
+  if (existing) {
+    clearTimeout(existing);
+  }
+  cleanupTimers.set(uri, setTimeout(() => {
+    FileSystem.deleteAsync(uri, { idempotent: true })
+      .then(() => {
+        cleanupTimers.delete(uri);
+        if (pendingPdfUri === uri) {
+          pendingPdfUri = null;
+        }
+      })
+      .catch(() => {
+        cleanupTimers.delete(uri);
+      });
+  }, REPORT_MAX_AGE_MS));
 }
 
 export async function cleanupStaleSharedReports(now = Date.now()): Promise<void> {
@@ -108,6 +133,11 @@ export async function cleanupStaleSharedReports(now = Date.now()): Promise<void>
     const info = await FileSystem.getInfoAsync(uri);
     if (info.exists && info.modificationTime && now - info.modificationTime * 1000 >= REPORT_MAX_AGE_MS) {
       await FileSystem.deleteAsync(uri, { idempotent: true });
+      const timer = cleanupTimers.get(uri);
+      if (timer) {
+        clearTimeout(timer);
+        cleanupTimers.delete(uri);
+      }
       if (pendingPdfUri === uri) {
         pendingPdfUri = null;
       }
@@ -117,7 +147,7 @@ export async function cleanupStaleSharedReports(now = Date.now()): Promise<void>
 
 export async function generateAndShareReport(
   record: CompletionRecord,
-  onGenerated?: () => Promise<void>,
+  onGenerated?: (report: { uri: string; filename: string }) => Promise<void>,
 ): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is unavailable');
@@ -135,16 +165,54 @@ export async function generateAndShareReport(
     throw error;
   }
   pendingPdfUri = uri;
-  await onGenerated?.();
+  await onGenerated?.({ uri, filename: buildAttachmentFilename(record) });
+  await shareReportUri(uri);
+}
+
+async function shareReportUri(uri: string): Promise<void> {
   try {
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       dialogTitle: 'Email or share IV League completion record',
       UTI: 'com.adobe.pdf',
     });
+    scheduleReportCleanup(uri);
   } catch (error) {
     await FileSystem.deleteAsync(uri, { idempotent: true });
     pendingPdfUri = null;
     throw error;
+  }
+}
+
+function safeStoredFilename(filename: string): string {
+  return filename.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-');
+}
+
+export async function shareStoredReport(filename: string, base64: string): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Sharing is unavailable');
+  }
+  await retryPendingCleanup();
+  await cleanupStaleSharedReports();
+  await FileSystem.makeDirectoryAsync(REPORT_DIRECTORY, { intermediates: true });
+  const safeFilename = safeStoredFilename(filename);
+  const uri = `${REPORT_DIRECTORY}${safeFilename}`;
+  await FileSystem.writeAsStringAsync(uri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  pendingPdfUri = uri;
+  await shareReportUri(uri);
+}
+
+export async function deleteCachedReport(filename: string): Promise<void> {
+  const uri = `${REPORT_DIRECTORY}${safeStoredFilename(filename)}`;
+  const timer = cleanupTimers.get(uri);
+  if (timer) {
+    clearTimeout(timer);
+    cleanupTimers.delete(uri);
+  }
+  await FileSystem.deleteAsync(uri, { idempotent: true });
+  if (pendingPdfUri === uri) {
+    pendingPdfUri = null;
   }
 }

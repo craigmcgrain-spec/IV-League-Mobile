@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { bytesToHex } from '@noble/hashes/utils.js';
@@ -17,6 +18,8 @@ interface CompletedProcedureRow {
   client_name: string;
   facility: string;
   details: string;
+  pdf_filename: string | null;
+  has_pdf: number;
 }
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -46,11 +49,20 @@ async function openHistoryDatabase(): Promise<SQLite.SQLiteDatabase> {
       task TEXT NOT NULL,
       client_name TEXT NOT NULL,
       facility TEXT NOT NULL,
-      details TEXT NOT NULL
+      details TEXT NOT NULL,
+      pdf_filename TEXT,
+      pdf_base64 TEXT
     );
     CREATE INDEX IF NOT EXISTS completed_procedures_completed_at
       ON completed_procedures(completed_at DESC);
   `);
+  const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(completed_procedures)');
+  if (!columns.some((column) => column.name === 'pdf_filename')) {
+    await database.execAsync('ALTER TABLE completed_procedures ADD COLUMN pdf_filename TEXT;');
+  }
+  if (!columns.some((column) => column.name === 'pdf_base64')) {
+    await database.execAsync('ALTER TABLE completed_procedures ADD COLUMN pdf_base64 TEXT;');
+  }
   return database;
 }
 
@@ -70,13 +82,16 @@ function mapRow(row: CompletedProcedureRow): CompletedProcedure {
     clientName: row.client_name,
     facility: row.facility,
     details: row.details,
+    hasPdf: row.has_pdf === 1,
+    pdfFilename: row.pdf_filename,
   };
 }
 
 export async function listCompletedProcedures(offset = 0): Promise<{ records: CompletedProcedure[]; hasMore: boolean }> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<CompletedProcedureRow>(`
-    SELECT id, completed_at, task, client_name, facility, details
+    SELECT id, completed_at, task, client_name, facility, details, pdf_filename,
+      CASE WHEN pdf_base64 IS NOT NULL THEN 1 ELSE 0 END AS has_pdf
     FROM completed_procedures
     ORDER BY completed_at DESC
     LIMIT ? OFFSET ?
@@ -87,20 +102,46 @@ export async function listCompletedProcedures(offset = 0): Promise<{ records: Co
   };
 }
 
-export async function saveCompletedProcedure(record: CompletionRecord): Promise<CompletedProcedure> {
+export async function saveCompletedProcedure(
+  record: CompletionRecord,
+  pdfUri: string,
+  pdfFilename: string,
+): Promise<CompletedProcedure> {
   const summary = completionSummary(record);
+  const pdfBase64 = await FileSystem.readAsStringAsync(pdfUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
   const database = await getDatabase();
   const result = await database.runAsync(
     `INSERT INTO completed_procedures
-      (completed_at, task, client_name, facility, details)
-      VALUES (?, ?, ?, ?, ?)`,
+      (completed_at, task, client_name, facility, details, pdf_filename, pdf_base64)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     summary.completedAt,
     summary.task,
     summary.clientName,
     summary.facility,
     summary.details,
+    pdfFilename,
+    pdfBase64,
   );
-  return { id: result.lastInsertRowId, ...summary };
+  return {
+    id: result.lastInsertRowId,
+    ...summary,
+    hasPdf: true,
+    pdfFilename,
+  };
+}
+
+export async function loadCompletedProcedurePdf(id: number): Promise<{ filename: string; base64: string }> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ pdf_filename: string | null; pdf_base64: string | null }>(
+    'SELECT pdf_filename, pdf_base64 FROM completed_procedures WHERE id = ?',
+    id,
+  );
+  if (!row?.pdf_filename || !row.pdf_base64) {
+    throw new Error('Stored PDF is unavailable');
+  }
+  return { filename: row.pdf_filename, base64: row.pdf_base64 };
 }
 
 export async function deleteCompletedProcedure(id: number): Promise<void> {

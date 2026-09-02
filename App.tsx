@@ -27,11 +27,17 @@ import {
   setBiometricLogin,
   verifyPassword,
 } from './src/services/auth';
-import { cleanupStaleSharedReports, generateAndShareReport } from './src/services/pdf';
+import {
+  cleanupStaleSharedReports,
+  deleteCachedReport,
+  generateAndShareReport,
+  shareStoredReport,
+} from './src/services/pdf';
 import {
   deleteCompletedProcedure,
   HISTORY_PAGE_SIZE,
   listCompletedProcedures,
+  loadCompletedProcedurePdf,
   saveCompletedProcedure,
 } from './src/services/history';
 import {
@@ -179,9 +185,12 @@ export default function App() {
         historyHasMore={historyHasMore}
         historyLoadingMore={historyLoadingMore}
         onBiometricChange={(enabled) => setAccount({ ...account, biometricsEnabled: enabled })}
-        onDeleteCompletion={async (id) => {
-          await deleteCompletedProcedure(id);
-          setCompletions((current) => current.filter((record) => record.id !== id));
+        onDeleteCompletion={async (record) => {
+          if (record.pdfFilename) {
+            await deleteCachedReport(record.pdfFilename);
+          }
+          await deleteCompletedProcedure(record.id);
+          setCompletions((current) => current.filter((item) => item.id !== record.id));
         }}
         onLoadMore={async () => {
           if (historyLoadingMore) {
@@ -393,12 +402,13 @@ function HomeScreen({
   historyHasMore: boolean;
   historyLoadingMore: boolean;
   onBiometricChange: (enabled: boolean) => void;
-  onDeleteCompletion: (id: number) => Promise<void>;
+  onDeleteCompletion: (record: CompletedProcedure) => Promise<void>;
   onLoadMore: () => Promise<void>;
   onStart: () => void;
   onLogout: () => void;
 }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [sharingHistoryId, setSharingHistoryId] = useState<number | null>(null);
 
   useEffect(() => {
     getBiometricCapability().then(setBiometricAvailable).catch(() => setBiometricAvailable(false));
@@ -433,13 +443,29 @@ function HomeScreen({
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            onDeleteCompletion(record.id).catch(() => {
+            onDeleteCompletion(record).catch(() => {
               Alert.alert('Record not deleted', 'The encrypted completion record could not be removed.');
             });
           },
         },
       ],
     );
+  };
+
+  const resendPdf = async (record: CompletedProcedure) => {
+    if (!record.hasPdf) {
+      Alert.alert('PDF unavailable', 'This record was created before encrypted PDF history was enabled.');
+      return;
+    }
+    setSharingHistoryId(record.id);
+    try {
+      const pdf = await loadCompletedProcedurePdf(record.id);
+      await shareStoredReport(pdf.filename, pdf.base64);
+    } catch {
+      Alert.alert('PDF could not be shared', 'The encrypted PDF could not be opened or the share sheet is unavailable.');
+    } finally {
+      setSharingHistoryId(null);
+    }
   };
 
   return (
@@ -464,7 +490,7 @@ function HomeScreen({
       ) : null}
       <View style={styles.historySection}>
         <Text style={styles.historyHeading}>Completed procedures</Text>
-        <Text style={styles.privacyNote}>Encrypted on this device. Date of birth, medical record number, and room are not retained.</Text>
+        <Text style={styles.privacyNote}>Encrypted on this device. The history summary excludes date of birth, medical record number, and room; the attached encrypted PDF retains the complete report.</Text>
         {historyLoading ? <ActivityIndicator color={COLORS.teal} /> : null}
         {historyError ? <Text style={styles.historyError}>Completion history could not be opened securely.</Text> : null}
         {!historyLoading && !historyError && completions.length === 0 ? (
@@ -481,9 +507,22 @@ function HomeScreen({
               <Text style={styles.historyMeta}>{record.facility} · {new Date(record.completedAt).toLocaleString()}</Text>
               {record.details ? <Text style={styles.historyDetails}>{record.details}</Text> : null}
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${record.task} for ${record.clientName}`} onPress={() => confirmDelete(record)} hitSlop={10}>
-              <Text style={styles.deleteText}>Delete</Text>
-            </Pressable>
+            <View style={styles.historyActions}>
+              {record.hasPdf ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Send PDF for ${record.task} for ${record.clientName}`}
+                  disabled={sharingHistoryId !== null}
+                  onPress={() => resendPdf(record)}
+                  hitSlop={8}
+                >
+                  <Text style={styles.sendPdfText}>{sharingHistoryId === record.id ? 'Opening...' : 'Send PDF'}</Text>
+                </Pressable>
+              ) : <Text style={styles.pdfUnavailable}>PDF unavailable</Text>}
+              <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${record.task} for ${record.clientName}`} onPress={() => confirmDelete(record)} hitSlop={8}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </Pressable>
+            </View>
           </View>
         ))}
         {historyHasMore ? (
@@ -666,12 +705,12 @@ function ReviewScreen({
     try {
       const record = completionRecord.current ?? { profile, client, procedure, completedAt: new Date() };
       completionRecord.current = record;
-      await generateAndShareReport(record, async () => {
+      await generateAndShareReport(record, async ({ uri, filename }) => {
         if (savedHistoryId !== null) {
           return;
         }
         try {
-          const saved = await saveCompletedProcedure(record);
+          const saved = await saveCompletedProcedure(record, uri, filename);
           setSavedHistoryId(saved.id);
           onHistorySaved(saved);
         } catch {
@@ -905,5 +944,8 @@ const styles = StyleSheet.create({
   historyClient: { color: COLORS.navy, fontSize: 17, fontWeight: '800', marginTop: 4 },
   historyMeta: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   historyDetails: { color: COLORS.text, fontSize: 13, fontWeight: '600', marginTop: 5 },
+  historyActions: { alignItems: 'flex-end', gap: 14 },
+  sendPdfText: { color: COLORS.teal, fontSize: 13, fontWeight: '800' },
+  pdfUnavailable: { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
   deleteText: { color: '#B42318', fontSize: 13, fontWeight: '700' },
 });

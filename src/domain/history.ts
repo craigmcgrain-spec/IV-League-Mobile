@@ -1,6 +1,6 @@
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
-export type NewCompletedProcedure = Omit<CompletedProcedure, 'id'>;
+export type NewCompletedProcedure = Omit<CompletedProcedure, 'id' | 'hasPdf' | 'pdfFilename'>;
 
 export function completionSummary(record: CompletionRecord): NewCompletedProcedure {
   if (!record.procedure.task) {

@@ -13,7 +13,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Single-choice size, side, and location controls for IV/PICC procedures
 - Explicit final confirmation before generating a letterheaded PDF
 - Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename and provider-safe temporary file retention
-- Authenticated, paged completed-procedure history with secure per-record deletion
+- Authenticated, paged completed-procedure history with encrypted PDF resend and secure per-record deletion
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
 Patient data is held only in application memory for the active workflow. It is not logged or persisted by the app. Use demo-safe data during development.
@@ -62,7 +62,7 @@ The camera permission is requested only when the scan screen is opened. Biometri
 - Passwords are never stored. Only a salted PBKDF2-derived hash is stored.
 - Account data uses `expo-secure-store` with this-device-only accessibility.
 - Completion history is encrypted at rest with SQLCipher. Its random 256-bit database key is held in platform secure storage.
-- History retains only completion time, task, client name, facility, and procedure summary. It does not retain date of birth, medical record number, or room.
+- The searchable history index retains only completion time, task, client name, facility, and procedure summary. The generated PDF contains the complete report (including date of birth, medical record number, and room), is stored as an encrypted SQLCipher value attached to that record, and can be sent again. Deleting a record also securely deletes its PDF and any materialized cache copy.
 - OCR runs on device; the application does not upload captured images.
 - Client intake information is not persisted. Shared PDFs are isolated in protected app cache so asynchronous email providers can read the attachment; the prior report is removed before another is generated and stale reports are removed after one hour.
 - PDF filenames contain the facility and client name as requested. Treat the attachment name as sensitive client information and use only approved email recipients and services.
