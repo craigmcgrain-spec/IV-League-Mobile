@@ -5,7 +5,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 ## Features
 
 - Local clinician profile with name and professional credentials
-- Password authentication using PBKDF2-SHA-256 (210,000 iterations, random salt) with the account stored in iOS Keychain / Android Keystore-backed secure storage
+- Password authentication using native PBKDF2-SHA-256 (210,000 iterations, random salt) with the account stored in iOS Keychain / Android Keystore-backed secure storage
 - Optional device biometric login using the platform authentication prompt
 - Client intake for name, date of birth, medical record number, facility, and room
 - Camera capture with on-device Google ML Kit text recognition; recognized values always return to editable fields for review

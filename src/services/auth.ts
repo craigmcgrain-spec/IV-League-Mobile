@@ -1,9 +1,8 @@
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+import { Buffer, pbkdf2 } from 'react-native-quick-crypto';
+import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { UserProfile } from '../types';
 
@@ -23,12 +22,19 @@ export interface Account {
 }
 
 async function derivePassword(password: string, saltHex: string): Promise<string> {
-  const key = await pbkdf2Async(sha256, utf8ToBytes(password), hexToBytes(saltHex), {
-    c: ITERATIONS,
-    dkLen: 32,
-    asyncTick: 10,
+  return new Promise((resolve, reject) => {
+    pbkdf2(password, Buffer.from(saltHex, 'hex'), ITERATIONS, 32, 'sha256', (error, key) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      if (!key) {
+        reject(new Error('Password derivation returned no key'));
+        return;
+      }
+      resolve(key.toString('hex'));
+    });
   });
-  return bytesToHex(key);
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
