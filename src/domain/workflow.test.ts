@@ -1,12 +1,26 @@
 import {
+  formatProcedureDateTime,
   needsCatheterSize,
   needsProcedureDetails,
   parseIntakeText,
+  parseProcedureDateTime,
   validateClient,
   validateProcedure,
 } from './workflow';
 
 describe('workflow', () => {
+  it('formats and parses editable local procedure dates and times', () => {
+    const source = new Date(2026, 8, 2, 21, 7);
+    expect(formatProcedureDateTime(source)).toEqual({
+      date: '09/02/2026',
+      time: '9:07 PM',
+    });
+    expect(parseProcedureDateTime('09/02/2026', '9:07 PM')).toEqual(source);
+    expect(parseProcedureDateTime('09/02/2026', '21:07')).toEqual(source);
+    expect(parseProcedureDateTime('02/30/2026', '9:07 PM')).toBeNull();
+    expect(parseProcedureDateTime('09/02/2026', '13:07 PM')).toBeNull();
+  });
+
   it('extracts labeled intake fields without guessing unlabeled patient data', () => {
     expect(parseIntakeText(`
       Name: Demo Patient

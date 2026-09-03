@@ -53,8 +53,10 @@ import {
   LOCATIONS,
   SIDES,
   TASKS,
+  formatProcedureDateTime,
   needsCatheterSize,
   needsProcedureDetails,
+  parseProcedureDateTime,
   parseIntakeText,
   validateClient,
   validateProcedure,
@@ -83,6 +85,8 @@ export default function App() {
   const [route, setRoute] = useState<Route>('home');
   const [client, setClient] = useState<Client>(EMPTY_CLIENT);
   const [procedure, setProcedure] = useState<Procedure>({ task: null, size: null, side: null, location: null });
+  const [procedureDateTime, setProcedureDateTime] = useState(() => formatProcedureDateTime(new Date()));
+  const [completedAt, setCompletedAt] = useState(() => new Date());
   const [ocrNotice, setOcrNotice] = useState(false);
   const [completions, setCompletions] = useState<CompletedProcedure[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -162,6 +166,9 @@ export default function App() {
   const resetWorkflow = () => {
     setClient(EMPTY_CLIENT);
     setProcedure({ task: null, size: null, side: null, location: null });
+    const now = new Date();
+    setProcedureDateTime(formatProcedureDateTime(now));
+    setCompletedAt(now);
     setOcrNotice(false);
     setShowArchived(false);
     setRoute('home');
@@ -245,7 +252,12 @@ export default function App() {
           setCompletions((current) => current.filter((record) => !selected.has(record.id)));
         }}
         onManageFacilities={() => setRoute('facilities')}
-        onStart={() => setRoute('intake')}
+        onStart={() => {
+          const now = new Date();
+          setProcedureDateTime(formatProcedureDateTime(now));
+          setCompletedAt(now);
+          setRoute('intake');
+        }}
         onLogout={() => {
           resetWorkflow();
           setAuthenticated(false);
@@ -281,7 +293,10 @@ export default function App() {
         client={client}
         facilities={facilities}
         ocrNotice={ocrNotice}
+        procedureDate={procedureDateTime.date}
+        procedureTime={procedureDateTime.time}
         onChange={setClient}
+        onProcedureDateTimeChange={setProcedureDateTime}
         onAddFacility={async (name) => {
           await addFacility(name);
           const updatedFacilities = await listFacilities();
@@ -297,7 +312,10 @@ export default function App() {
         }}
         onScan={() => setRoute('camera')}
         onBack={resetWorkflow}
-        onContinue={() => setRoute('procedure')}
+        onContinue={(selectedCompletedAt) => {
+          setCompletedAt(selectedCompletedAt);
+          setRoute('procedure');
+        }}
       />
     );
   }
@@ -332,6 +350,7 @@ export default function App() {
         profile={account.profile}
         client={client}
         procedure={procedure}
+        completedAt={completedAt}
         onHistorySaved={(record) => setCompletions((current) => [record, ...current])}
         onBack={() => setRoute('procedure')}
         onComplete={resetWorkflow}
@@ -758,7 +777,10 @@ function IntakeScreen({
   client,
   facilities,
   ocrNotice,
+  procedureDate,
+  procedureTime,
   onChange,
+  onProcedureDateTimeChange,
   onAddFacility,
   onScan,
   onBack,
@@ -767,11 +789,14 @@ function IntakeScreen({
   client: Client;
   facilities: string[];
   ocrNotice: boolean;
+  procedureDate: string;
+  procedureTime: string;
   onChange: (client: Client) => void;
+  onProcedureDateTimeChange: (value: { date: string; time: string }) => void;
   onAddFacility: (name: string) => Promise<void>;
   onScan: () => void;
   onBack: () => void;
-  onContinue: () => void;
+  onContinue: (completedAt: Date) => void;
 }) {
   const [newFacility, setNewFacility] = useState('');
   const [facilityBusy, setFacilityBusy] = useState(false);
@@ -793,6 +818,14 @@ function IntakeScreen({
   };
   const continueFlow = () => {
     const missing = validateClient(client);
+    const selectedCompletedAt = parseProcedureDateTime(procedureDate, procedureTime);
+    if (!selectedCompletedAt) {
+      Alert.alert(
+        'Procedure date or time invalid',
+        'Enter the date as MM/DD/YYYY and the time as h:mm AM/PM or 24-hour time.',
+      );
+      return;
+    }
     if (!facilities.includes(client.facility)) {
       Alert.alert('Select a facility', 'Choose a facility from your directory.');
       return;
@@ -801,7 +834,7 @@ function IntakeScreen({
       Alert.alert('Client information incomplete', `Review: ${missing.join(', ')}.`);
       return;
     }
-    onContinue();
+    onContinue(selectedCompletedAt);
   };
 
   return (
@@ -809,6 +842,20 @@ function IntakeScreen({
       <StepHeader step="1 of 3" title="Client intake" onBack={onBack} />
       <SecondaryButton label="Scan document with camera" onPress={onScan} />
       {ocrNotice ? <View style={styles.notice}><Text style={styles.noticeText}>Scanned values were added. Review and edit every field before continuing.</Text></View> : null}
+      <Field
+        label="Procedure date"
+        value={procedureDate}
+        onChangeText={(date) => onProcedureDateTimeChange({ date, time: procedureTime })}
+        placeholder="MM/DD/YYYY"
+        keyboardType="numbers-and-punctuation"
+      />
+      <Field
+        label="Procedure time"
+        value={procedureTime}
+        onChangeText={(time) => onProcedureDateTimeChange({ date: procedureDate, time })}
+        placeholder="h:mm AM/PM"
+        autoCapitalize="characters"
+      />
       <Field label="Name" value={client.name} onChangeText={(value) => update('name', value)} autoCapitalize="words" />
       <Field label="Date of birth" value={client.dateOfBirth} onChangeText={(value) => update('dateOfBirth', value)} placeholder="MM/DD/YYYY" keyboardType="numbers-and-punctuation" />
       <Field label="Medical record number" value={client.medicalRecordNumber} onChangeText={(value) => update('medicalRecordNumber', value)} autoCapitalize="characters" />
@@ -1018,6 +1065,7 @@ function ReviewScreen({
   profile,
   client,
   procedure,
+  completedAt,
   onHistorySaved,
   onBack,
   onComplete,
@@ -1025,6 +1073,7 @@ function ReviewScreen({
   profile: UserProfile;
   client: Client;
   procedure: Procedure;
+  completedAt: Date;
   onHistorySaved: (record: CompletedProcedure) => void;
   onBack: () => void;
   onComplete: () => void;
@@ -1041,7 +1090,7 @@ function ReviewScreen({
     }
     setBusy(true);
     try {
-      const record = completionRecord.current ?? { profile, client, procedure, completedAt: new Date() };
+      const record = completionRecord.current ?? { profile, client, procedure, completedAt };
       completionRecord.current = record;
       if (savedHistoryId !== null) {
         return;
@@ -1068,6 +1117,7 @@ function ReviewScreen({
   return (
     <AppScreen>
       <StepHeader step="3 of 3" title="Review and confirm" onBack={onBack} />
+      <ReviewCard title="Completion" rows={[['Procedure date and time', completedAt.toLocaleString()]]} />
       <ReviewCard title="Clinician" rows={[['Name', `${profile.name}, ${profile.credentials}`]]} />
       <ReviewCard title="Client" rows={[
         ['Name', client.name],

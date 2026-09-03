@@ -13,6 +13,50 @@ export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
 export const SIDES = ['Right', 'Left'] as const;
 export const LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
 
+export function formatProcedureDateTime(value: Date): { date: string; time: string } {
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  const year = value.getFullYear();
+  const period = value.getHours() >= 12 ? 'PM' : 'AM';
+  const hour = value.getHours() % 12 || 12;
+  const minute = String(value.getMinutes()).padStart(2, '0');
+  return {
+    date: `${month}/${day}/${year}`,
+    time: `${hour}:${minute} ${period}`,
+  };
+}
+
+export function parseProcedureDateTime(dateValue: string, timeValue: string): Date | null {
+  const dateMatch = dateValue.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const timeMatch = timeValue.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?$/i);
+  if (!dateMatch || !timeMatch) {
+    return null;
+  }
+
+  const month = Number(dateMatch[1]);
+  const day = Number(dateMatch[2]);
+  const year = Number(dateMatch[3]);
+  const enteredHour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const period = timeMatch[3]?.toUpperCase();
+  if (minute > 59 || (period && (enteredHour < 1 || enteredHour > 12)) || (!period && enteredHour > 23)) {
+    return null;
+  }
+
+  const hour = period
+    ? (enteredHour % 12) + (period === 'PM' ? 12 : 0)
+    : enteredHour;
+  const result = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (
+    result.getFullYear() !== year
+    || result.getMonth() !== month - 1
+    || result.getDate() !== day
+  ) {
+    return null;
+  }
+  return result;
+}
+
 export function needsCatheterSize(task: ProcedureTask | null): boolean {
   return task === 'IV Insertion' || task === 'PICC Insertion';
 }
