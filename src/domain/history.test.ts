@@ -14,6 +14,7 @@ describe('completion history', () => {
       procedure: {
         task: 'IV Insertion',
         size: '20ga',
+        catheterLength: null,
         side: 'Right',
         location: 'Forearm',
       },
@@ -42,7 +43,7 @@ describe('completion history', () => {
         facility: 'Demo Medical Center',
         roomNumber: '',
       },
-      procedure: { task: null, size: null, side: null, location: null },
+      procedure: { task: null, size: null, catheterLength: null, side: null, location: null },
       completedAt: new Date(),
     })).toThrow('must have a task');
   });
@@ -60,6 +61,7 @@ describe('completion history', () => {
       procedure: {
         task: 'Blood Draw',
         size: null,
+        catheterLength: null,
         side: 'Left',
         location: 'Antecubital',
       },
@@ -67,5 +69,28 @@ describe('completion history', () => {
     });
 
     expect(summary.details).toBe('Left Antecubital');
+  });
+
+  it('stores PICC catheter length with side and location', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'PICC Insertion',
+        size: null,
+        catheterLength: '45 cm',
+        side: 'Right',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe('Length: 45 cm · Right Upper Arm');
   });
 });

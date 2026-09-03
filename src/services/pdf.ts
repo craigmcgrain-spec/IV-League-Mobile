@@ -2,7 +2,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-import { needsCatheterSize, needsProcedureDetails } from '../domain/workflow';
+import {
+  needsCatheterLength,
+  needsCatheterSize,
+  needsProcedureDetails,
+} from '../domain/workflow';
 import {
   cleanupSharedPdfExports,
   deleteSharedPdfExports,
@@ -25,9 +29,14 @@ function row(label: string, value: string): string {
 
 export function buildReportHtml(record: CompletionRecord): string {
   const { profile, client, procedure, completedAt } = record;
-  const details = needsProcedureDetails(procedure.task)
-    ? `${needsCatheterSize(procedure.task) ? row('Size', procedure.size ?? '') : ''}${row('Side', procedure.side ?? '')}${row('Location', procedure.location ?? '')}`
-    : '';
+  const details = [
+    needsCatheterSize(procedure.task) ? row('Size', procedure.size ?? '') : '',
+    needsCatheterLength(procedure.task)
+      ? row('Catheter length', procedure.catheterLength ?? '')
+      : '',
+    needsProcedureDetails(procedure.task) ? row('Side', procedure.side ?? '') : '',
+    needsProcedureDetails(procedure.task) ? row('Location', procedure.location ?? '') : '',
+  ].join('');
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"><style>

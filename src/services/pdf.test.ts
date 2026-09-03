@@ -38,6 +38,7 @@ describe('PDF report', () => {
       procedure: {
         task: 'IV Insertion',
         size: '20ga',
+        catheterLength: null,
         side: 'Right',
         location: 'Forearm',
       },
@@ -65,7 +66,13 @@ describe('PDF report', () => {
         facility: 'Demo:Facility?',
         roomNumber: '204B',
       },
-      procedure: { task: 'Blood Draw', size: null, side: null, location: null },
+      procedure: {
+        task: 'Blood Draw',
+        size: null,
+        catheterLength: null,
+        side: null,
+        location: null,
+      },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     })).toBe('Demo-Facility_..-Demo-Patient_2026-09-01.pdf');
   });
@@ -130,6 +137,7 @@ describe('PDF report', () => {
       procedure: {
         task: 'Blood Draw',
         size: null,
+        catheterLength: null,
         side: 'Left',
         location: 'Antecubital',
       },
@@ -138,6 +146,30 @@ describe('PDF report', () => {
 
     expect(html).toContain('<th>Side</th><td>Left</td>');
     expect(html).toContain('<th>Location</th><td>Antecubital</td>');
+    expect(html).not.toContain('<th>Size</th>');
+  });
+
+  it('includes catheter length but not gauge size for a PICC insertion', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'PICC Insertion',
+        size: null,
+        catheterLength: '45 cm',
+        side: 'Right',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Catheter length</th><td>45 cm</td>');
     expect(html).not.toContain('<th>Size</th>');
   });
 });

@@ -54,6 +54,7 @@ import {
   SIDES,
   TASKS,
   formatProcedureDateTime,
+  needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
   parseProcedureDateTime,
@@ -84,7 +85,13 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [route, setRoute] = useState<Route>('home');
   const [client, setClient] = useState<Client>(EMPTY_CLIENT);
-  const [procedure, setProcedure] = useState<Procedure>({ task: null, size: null, side: null, location: null });
+  const [procedure, setProcedure] = useState<Procedure>({
+    task: null,
+    size: null,
+    catheterLength: null,
+    side: null,
+    location: null,
+  });
   const [procedureDateTime, setProcedureDateTime] = useState(() => formatProcedureDateTime(new Date()));
   const [completedAt, setCompletedAt] = useState(() => new Date());
   const [ocrNotice, setOcrNotice] = useState(false);
@@ -165,7 +172,7 @@ export default function App() {
 
   const resetWorkflow = () => {
     setClient(EMPTY_CLIENT);
-    setProcedure({ task: null, size: null, side: null, location: null });
+    setProcedure({ task: null, size: null, catheterLength: null, side: null, location: null });
     const now = new Date();
     setProcedureDateTime(formatProcedureDateTime(now));
     setCompletedAt(now);
@@ -1030,6 +1037,7 @@ function ProcedureScreen({
     onChange({
       task,
       size: needsCatheterSize(task) ? procedure.size : null,
+      catheterLength: needsCatheterLength(task) ? procedure.catheterLength : null,
       side: needsProcedureDetails(task) ? procedure.side : null,
       location: needsProcedureDetails(task) ? procedure.location : null,
     });
@@ -1051,6 +1059,14 @@ function ProcedureScreen({
         <>
           {needsCatheterSize(procedure.task) ? (
             <ChoiceGroup label="Catheter size" options={GAUGES} value={procedure.size} onSelect={(size) => onChange({ ...procedure, size: size as ProcedureSize })} compact />
+          ) : null}
+          {needsCatheterLength(procedure.task) ? (
+            <Field
+              label="Catheter length"
+              value={procedure.catheterLength ?? ''}
+              onChangeText={(catheterLength) => onChange({ ...procedure, catheterLength })}
+              placeholder="e.g., 45 cm"
+            />
           ) : null}
           <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
           <ChoiceGroup label="Location" options={LOCATIONS} value={procedure.location} onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })} />
@@ -1130,6 +1146,9 @@ function ReviewScreen({
         ...(needsProcedureDetails(procedure.task)
           ? [
             ...(needsCatheterSize(procedure.task) ? [['Size', procedure.size ?? '']] as [string, string][] : []),
+            ...(needsCatheterLength(procedure.task)
+              ? [['Catheter length', procedure.catheterLength ?? '']] as [string, string][]
+              : []),
             ['Side', procedure.side ?? ''],
             ['Location', procedure.location ?? ''],
           ] as [string, string][]

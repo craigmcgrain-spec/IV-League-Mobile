@@ -1,5 +1,6 @@
 import {
   formatProcedureDateTime,
+  needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
   parseIntakeText,
@@ -53,6 +54,7 @@ describe('workflow', () => {
     expect(validateProcedure({
       task: 'IV Insertion',
       size: '20ga',
+      catheterLength: null,
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
@@ -64,14 +66,46 @@ describe('workflow', () => {
     expect(validateProcedure({
       task: 'Blood Draw',
       size: null,
+      catheterLength: null,
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
     expect(validateProcedure({
       task: 'Blood Draw',
       size: null,
+      catheterLength: null,
       side: 'Left',
       location: 'Antecubital',
     })).toEqual([]);
+  });
+
+  it('requires catheter length, side, and location for PICC insertion without a gauge', () => {
+    expect(needsCatheterSize('PICC Insertion')).toBe(false);
+    expect(needsCatheterLength('PICC Insertion')).toBe(true);
+    expect(validateProcedure({
+      task: 'PICC Insertion',
+      size: null,
+      catheterLength: '',
+      side: 'Right',
+      location: 'Upper Arm',
+    })).toEqual(['catheter length']);
+    expect(validateProcedure({
+      task: 'PICC Insertion',
+      size: null,
+      catheterLength: '45 cm',
+      side: 'Right',
+      location: 'Upper Arm',
+    })).toEqual([]);
+  });
+
+  it('requires side and location for dressing changes', () => {
+    expect(needsProcedureDetails('Dressing Change')).toBe(true);
+    expect(validateProcedure({
+      task: 'Dressing Change',
+      size: null,
+      catheterLength: null,
+      side: null,
+      location: null,
+    })).toEqual(['side', 'location']);
   });
 });

@@ -19,6 +19,7 @@ export type ProcedureLocation = 'Hand' | 'Wrist' | 'Forearm' | 'Antecubital' | '
 export interface Procedure {
   task: ProcedureTask | null;
   size: ProcedureSize | null;
+  catheterLength: string | null;
   side: ProcedureSide | null;
   location: ProcedureLocation | null;
 }

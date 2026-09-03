@@ -58,11 +58,15 @@ export function parseProcedureDateTime(dateValue: string, timeValue: string): Da
 }
 
 export function needsCatheterSize(task: ProcedureTask | null): boolean {
-  return task === 'IV Insertion' || task === 'PICC Insertion';
+  return task === 'IV Insertion';
+}
+
+export function needsCatheterLength(task: ProcedureTask | null): boolean {
+  return task === 'PICC Insertion';
 }
 
 export function needsProcedureDetails(task: ProcedureTask | null): boolean {
-  return needsCatheterSize(task) || task === 'Blood Draw';
+  return task !== null;
 }
 
 export function validateClient(client: Client): string[] {
@@ -85,6 +89,7 @@ export function validateProcedure(procedure: Procedure): string[] {
   }
   return [
     needsCatheterSize(procedure.task) && !procedure.size ? 'size' : '',
+    needsCatheterLength(procedure.task) && !procedure.catheterLength?.trim() ? 'catheter length' : '',
     !procedure.side ? 'side' : '',
     !procedure.location ? 'location' : '',
   ].filter(Boolean);
