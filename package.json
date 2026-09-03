@@ -1,6 +1,6 @@
 {
   "name": "iv-league-mobile",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.ts",
   "dependencies": {
     "@noble/hashes": "^2.4.0",
