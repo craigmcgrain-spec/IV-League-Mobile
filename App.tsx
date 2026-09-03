@@ -281,6 +281,19 @@ export default function App() {
         facilities={facilities}
         ocrNotice={ocrNotice}
         onChange={setClient}
+        onAddFacility={async (name) => {
+          await addFacility(name);
+          const updatedFacilities = await listFacilities();
+          setFacilities(updatedFacilities);
+          const normalized = name.replace(/\s+/g, ' ').trim();
+          const savedFacility = updatedFacilities.find(
+            (facility) => facility.toLowerCase() === normalized.toLowerCase(),
+          );
+          if (!savedFacility) {
+            throw new Error('Facility was not saved');
+          }
+          setClient((current) => ({ ...current, facility: savedFacility }));
+        }}
         onScan={() => setRoute('camera')}
         onBack={resetWorkflow}
         onContinue={() => setRoute('procedure')}
@@ -745,6 +758,7 @@ function IntakeScreen({
   facilities,
   ocrNotice,
   onChange,
+  onAddFacility,
   onScan,
   onBack,
   onContinue,
@@ -753,11 +767,29 @@ function IntakeScreen({
   facilities: string[];
   ocrNotice: boolean;
   onChange: (client: Client) => void;
+  onAddFacility: (name: string) => Promise<void>;
   onScan: () => void;
   onBack: () => void;
   onContinue: () => void;
 }) {
+  const [newFacility, setNewFacility] = useState('');
+  const [facilityBusy, setFacilityBusy] = useState(false);
   const update = (key: keyof Client, value: string) => onChange({ ...client, [key]: value });
+  const saveFacility = async () => {
+    if (!newFacility.trim()) {
+      Alert.alert('Facility name required', 'Enter a facility name.');
+      return;
+    }
+    setFacilityBusy(true);
+    try {
+      await onAddFacility(newFacility);
+      setNewFacility('');
+    } catch {
+      Alert.alert('Facility not saved', 'The facility could not be added to your directory.');
+    } finally {
+      setFacilityBusy(false);
+    }
+  };
   const continueFlow = () => {
     const missing = validateClient(client);
     if (!facilities.includes(client.facility)) {
@@ -781,11 +813,15 @@ function IntakeScreen({
       <Field label="Medical record number" value={client.medicalRecordNumber} onChangeText={(value) => update('medicalRecordNumber', value)} autoCapitalize="characters" />
       <ChoiceGroup label="Facility" options={facilities} value={facilities.includes(client.facility) ? client.facility : null} onSelect={(facility) => update('facility', facility)} />
       {facilities.length === 0 ? (
-        <Text style={styles.historyError}>No facilities are configured. Return home and add one in Facility directory.</Text>
+        <Text style={styles.historyError}>No facilities are configured. Add one below to continue.</Text>
       ) : null}
       {client.facility && !facilities.includes(client.facility) ? (
-        <Text style={styles.historyError}>The scanned facility is not in your directory. Select a configured facility.</Text>
+        <Text style={styles.historyError}>The scanned facility is not in your directory. Add it below or select a configured facility.</Text>
       ) : null}
+      <View style={styles.inlineFacility}>
+        <Field label="Add a facility" value={newFacility} onChangeText={setNewFacility} autoCapitalize="words" />
+        <SecondaryButton label="Add to facility directory" onPress={saveFacility} busy={facilityBusy} />
+      </View>
       <Field label="Room number" value={client.roomNumber} onChangeText={(value) => update('roomNumber', value)} />
       <PrimaryButton label="Continue to procedure" onPress={continueFlow} />
     </AppScreen>
@@ -1094,10 +1130,10 @@ function PrimaryButton({ label, onPress, busy = false, disabled = false }: { lab
   );
 }
 
-function SecondaryButton({ label, onPress, light = false }: { label: string; onPress: () => void | Promise<void>; light?: boolean }) {
+function SecondaryButton({ label, onPress, light = false, busy = false }: { label: string; onPress: () => void | Promise<void>; light?: boolean; busy?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.secondaryButton}>
-      <Text style={[styles.secondaryButtonText, light && { color: 'white' }]}>{label}</Text>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={onPress} style={[styles.secondaryButton, busy && styles.buttonDimmed]}>
+      {busy ? <ActivityIndicator color={light ? 'white' : COLORS.teal} /> : <Text style={[styles.secondaryButtonText, light && { color: 'white' }]}>{label}</Text>}
     </Pressable>
   );
 }
@@ -1240,6 +1276,7 @@ const styles = StyleSheet.create({
   batchActions: { backgroundColor: COLORS.paleTeal, borderRadius: 15, padding: 12, gap: 2 },
   facilityRow: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 18 },
   facilityName: { color: COLORS.navy, fontSize: 16, fontWeight: '700', flex: 1 },
+  inlineFacility: { backgroundColor: COLORS.paleTeal, borderRadius: 15, padding: 14, gap: 12 },
   sendPdfText: { color: COLORS.teal, fontSize: 13, fontWeight: '800' },
   pdfUnavailable: { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
   deleteText: { color: '#B42318', fontSize: 13, fontWeight: '700' },

@@ -8,7 +8,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Password authentication using native PBKDF2-SHA-256 (210,000 iterations, random salt) with the account stored in iOS Keychain / Android Keystore-backed secure storage
 - Optional device biometric login using the platform authentication prompt
 - Client intake for name, date of birth, medical record number, facility, and room
-- Editable encrypted facility directory with facility selection during intake
+- Editable encrypted facility directory with facility selection and inline facility creation during intake
 - Camera capture with on-device Google ML Kit text recognition; recognized values always return to editable fields for review
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
 - Single-choice size, side, and location controls for IV/PICC procedures
