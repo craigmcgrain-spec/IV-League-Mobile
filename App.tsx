@@ -1208,8 +1208,18 @@ function AppScreen({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.screen}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
