@@ -9,7 +9,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Optional device biometric login using the platform authentication prompt
 - Client intake for an editable procedure date/time (defaulting to now), name, auto-formatted date of birth, medical record number, facility, and room
 - Editable encrypted facility directory with facility selection and inline facility creation during intake
-- Camera capture with on-device Google ML Kit text recognition; recognized values always return to editable fields for review
+- Camera capture with on-device Google ML Kit text recognition, including labeled names and unique `Last, First` name lines; recognized values always return to editable fields for review
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
 - IV gauge selection; PICC catheter-length entry; and side/location selection for every procedure
 - Explicit final confirmation before generating a letterheaded PDF

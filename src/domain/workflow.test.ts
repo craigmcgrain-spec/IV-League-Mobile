@@ -31,7 +31,7 @@ describe('workflow', () => {
     expect(parseProcedureDateTime('09/02/2026', '13:07 PM')).toBeNull();
   });
 
-  it('extracts labeled intake fields without guessing unlabeled patient data', () => {
+  it('extracts labeled intake fields', () => {
     expect(parseIntakeText(`
       Name: Demo Patient
       DOB: 01021980
@@ -45,6 +45,27 @@ describe('workflow', () => {
       facility: 'Demo Medical Center',
       roomNumber: '204B',
     });
+  });
+
+  it('recognizes a unique standalone client name formatted as Last, First', () => {
+    expect(parseIntakeText(`
+      McGrain, Craig
+      DOB: 01021980
+      MRN: SAFE-001
+      Facility: Demo Medical Center
+      Room: 204B
+    `).name).toBe('McGrain, Craig');
+  });
+
+  it('prioritizes labeled names and does not guess between multiple comma lines', () => {
+    expect(parseIntakeText(`
+      Patient: Craig McGrain
+      McGrain, Craig
+    `).name).toBe('Craig McGrain');
+    expect(parseIntakeText(`
+      McGrain, Craig
+      Account, Holder
+    `).name).toBeUndefined();
   });
 
   it('requires every client field', () => {

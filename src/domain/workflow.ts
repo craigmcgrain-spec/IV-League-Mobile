@@ -111,8 +111,41 @@ const LABELS: [keyof Client, RegExp][] = [
   ['medicalRecordNumber', /^(?:medical\s*record\s*(?:number|no\.?)?|mrn)\s*[:#-]?\s*(.+)$/i],
   ['facility', /^facility\s*[:#-]?\s*(.+)$/i],
   ['roomNumber', /^room(?:\s*(?:number|no\.?))?\s*[:#-]?\s*(.+)$/i],
-  ['name', /^(?:client|patient)?\s*name\s*[:#-]?\s*(.+)$/i],
+  ['name', /^(?:(?:client|patient)(?:\s*name)?|name)\s*[:#-]?\s*(.+)$/i],
 ];
+
+const LAST_FIRST_NAME_PATTERN =
+  /^([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*),\s*([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*)$/u;
+const NON_NAME_WORDS = new Set([
+  'date',
+  'dob',
+  'birth',
+  'facility',
+  'room',
+  'medical',
+  'record',
+  'mrn',
+  'patient',
+  'client',
+]);
+
+function findUniqueLastFirstName(lines: string[]): string | null {
+  const candidates = new Set<string>();
+  for (const line of lines) {
+    const match = line.match(LAST_FIRST_NAME_PATTERN);
+    const lastName = match?.[1];
+    const firstName = match?.[2];
+    if (!lastName || !firstName || line.length > 80) {
+      continue;
+    }
+    const words = `${lastName} ${firstName}`.toLowerCase().split(/\s+/);
+    if (words.length > 6 || words.some((word) => NON_NAME_WORDS.has(word.replace(/[.'-]/g, '')))) {
+      continue;
+    }
+    candidates.add(`${lastName.replace(/\s+/g, ' ')}, ${firstName.replace(/\s+/g, ' ')}`);
+  }
+  return candidates.size === 1 ? (candidates.values().next().value ?? null) : null;
+}
 
 export function parseIntakeText(text: string): Partial<Client> {
   const parsed: Partial<Client> = {};
@@ -126,6 +159,12 @@ export function parseIntakeText(text: string): Partial<Client> {
         parsed[field] = field === 'dateOfBirth' ? formatDateOfBirthInput(value) : value;
         break;
       }
+    }
+  }
+  if (!parsed.name) {
+    const lastFirstName = findUniqueLastFirstName(lines);
+    if (lastFirstName) {
+      parsed.name = lastFirstName;
     }
   }
   return parsed;
