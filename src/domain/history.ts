@@ -1,6 +1,9 @@
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
-export type NewCompletedProcedure = Omit<CompletedProcedure, 'id' | 'hasPdf' | 'pdfFilename'>;
+export type NewCompletedProcedure = Omit<
+  CompletedProcedure,
+  'id' | 'hasPdf' | 'pdfFilename' | 'includedInBatch' | 'archived'
+>;
 
 export function completionSummary(record: CompletionRecord): NewCompletedProcedure {
   if (!record.procedure.task) {
@@ -15,6 +18,7 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     task: record.procedure.task,
     clientName: record.client.name.trim(),
     facility: record.client.facility.trim(),
+    roomNumber: record.client.roomNumber.trim(),
     details,
   };
 }

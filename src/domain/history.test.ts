@@ -25,11 +25,11 @@ describe('completion history', () => {
       task: 'IV Insertion',
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
+      roomNumber: '204B',
       details: '20ga · Right Forearm',
     });
     expect(summary).not.toHaveProperty('dateOfBirth');
     expect(summary).not.toHaveProperty('medicalRecordNumber');
-    expect(summary).not.toHaveProperty('roomNumber');
   });
 
   it('rejects records without a selected task', () => {

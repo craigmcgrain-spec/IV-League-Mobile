@@ -8,7 +8,7 @@ import {
   deleteSharedPdfExports,
   sharePdf,
 } from '../native/reliableSharing';
-import type { CompletionRecord } from '../types';
+import type { CompletedProcedure, CompletionRecord, UserProfile } from '../types';
 
 export function escapeHtml(value: string): string {
   return value
@@ -88,6 +88,69 @@ export function buildAttachmentFilename(record: CompletionRecord): string {
   return `${facility}_${clientName}_${date}.pdf`;
 }
 
+function formatDateRange(records: CompletedProcedure[]): { start: string; end: string } {
+  const timestamps = records.map((record) => new Date(record.completedAt).getTime());
+  const formatLocalDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const start = formatLocalDate(Math.min(...timestamps));
+  const end = formatLocalDate(Math.max(...timestamps));
+  return { start, end };
+}
+
+export function buildCompletedProceduresFilename(records: CompletedProcedure[]): string {
+  const { start, end } = formatDateRange(records);
+  return `Completed Procedures_${start}_to_${end}.pdf`;
+}
+
+export function buildCompletedProceduresHtml(
+  profile: UserProfile,
+  records: CompletedProcedure[],
+): string {
+  if (records.length === 0) {
+    throw new Error('Select at least one completed procedure');
+  }
+  const ordered = [...records].sort(
+    (left, right) => new Date(left.completedAt).getTime() - new Date(right.completedAt).getTime(),
+  );
+  const { start, end } = formatDateRange(ordered);
+  const procedures = ordered.map((record) => {
+    const completedAt = new Date(record.completedAt);
+    const taskDetails = record.details ? `${record.task} - ${record.details}` : record.task;
+    return `<section class="procedure">
+      <div class="date">${escapeHtml(completedAt.toLocaleDateString())} ${escapeHtml(completedAt.toLocaleTimeString())}</div>
+      <div class="client">${escapeHtml(record.clientName)} at ${escapeHtml(record.facility)} room ${escapeHtml(record.roomNumber || 'Not recorded')}</div>
+      <div class="task">${escapeHtml(taskDetails)}</div>
+    </section>`;
+  }).join('');
+
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+@page { margin: 42px; }
+body { color: #1b2b38; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }
+.letterhead { border-bottom: 4px solid #008a8c; padding-bottom: 18px; margin-bottom: 28px; }
+.name { color: #12283f; font-size: 24px; font-weight: 800; }
+.range { color: #647480; margin-top: 6px; }
+h1 { color: #12283f; font-size: 22px; margin: 0 0 22px; }
+.procedure { border-bottom: 1px solid #9eacb5; padding: 14px 0; page-break-inside: avoid; }
+.procedure:last-child { border-bottom: 0; }
+.date { color: #647480; font-size: 12px; }
+.client { font-size: 15px; font-weight: 700; margin-top: 5px; }
+.task { color: #008a8c; font-weight: 700; margin-top: 5px; }
+</style></head><body>
+<div class="letterhead">
+  <div class="name">${escapeHtml(profile.name)}, ${escapeHtml(profile.credentials)}</div>
+  <div class="range">${escapeHtml(start)} through ${escapeHtml(end)}</div>
+</div>
+<h1>Completed Procedures</h1>
+${procedures}
+</body></html>`;
+}
+
 function attachmentUri(record: CompletionRecord): string {
   if (!FileSystem.cacheDirectory) {
     throw new Error('App cache is unavailable');
@@ -152,14 +215,9 @@ export async function cleanupStaleSharedReports(now = Date.now()): Promise<void>
   }));
 }
 
-export async function generateAndShareReport(
+export async function generateReport(
   record: CompletionRecord,
-  onGenerated?: (report: { uri: string; filename: string }) => Promise<void>,
-): Promise<void> {
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('Sharing is unavailable');
-  }
-  await retryPendingCleanup();
+): Promise<{ uri: string; filename: string }> {
   await cleanupStaleSharedReports();
   await FileSystem.makeDirectoryAsync(REPORT_DIRECTORY, { intermediates: true });
   const printed = await Print.printToFileAsync({ html: buildReportHtml(record) });
@@ -171,8 +229,32 @@ export async function generateAndShareReport(
     await FileSystem.deleteAsync(printed.uri, { idempotent: true });
     throw error;
   }
+  return { uri, filename: buildAttachmentFilename(record) };
+}
+
+export async function generateAndShareCompletedProcedures(
+  profile: UserProfile,
+  records: CompletedProcedure[],
+): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Sharing is unavailable');
+  }
+  await retryPendingCleanup();
+  await cleanupStaleSharedReports();
+  await FileSystem.makeDirectoryAsync(REPORT_DIRECTORY, { intermediates: true });
+  const filename = buildCompletedProceduresFilename(records);
+  const printed = await Print.printToFileAsync({
+    html: buildCompletedProceduresHtml(profile, records),
+  });
+  const uri = `${REPORT_DIRECTORY}${filename}`;
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    await FileSystem.moveAsync({ from: printed.uri, to: uri });
+  } catch (error) {
+    await FileSystem.deleteAsync(printed.uri, { idempotent: true });
+    throw error;
+  }
   pendingPdfUri = uri;
-  await onGenerated?.({ uri, filename: buildAttachmentFilename(record) });
   await shareReportUri(uri);
 }
 

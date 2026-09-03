@@ -1,5 +1,7 @@
 import {
   buildAttachmentFilename,
+  buildCompletedProceduresFilename,
+  buildCompletedProceduresHtml,
   buildReportHtml,
   cleanupStaleSharedReports,
   escapeHtml,
@@ -85,5 +87,33 @@ describe('PDF report', () => {
       '/cache/iv-league-reports/Demo Facility_Demo Patient_2026-09-01.pdf',
       { idempotent: true },
     );
+  });
+
+  it('formats a selected Completed Procedures document', () => {
+    const records = [{
+      id: 1,
+      completedAt: '2026-09-01T12:00:00.000Z',
+      task: 'IV Insertion',
+      clientName: 'Demo Patient',
+      facility: 'Demo Medical Center',
+      roomNumber: '204B',
+      details: '20ga · Right Forearm',
+      hasPdf: true,
+      pdfFilename: 'demo.pdf',
+      includedInBatch: false,
+      archived: false,
+    }] as const;
+
+    const html = buildCompletedProceduresHtml(
+      { name: 'Demo Clinician', credentials: 'RN' },
+      [...records],
+    );
+
+    expect(html).toContain('Demo Clinician, RN');
+    expect(html).toContain('2026-09-01 through 2026-09-01');
+    expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
+    expect(html).toContain('IV Insertion - 20ga · Right Forearm');
+    expect(buildCompletedProceduresFilename([...records]))
+      .toBe('Completed Procedures_2026-09-01_to_2026-09-01.pdf');
   });
 });

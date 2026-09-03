@@ -36,7 +36,10 @@ export interface CompletedProcedure {
   task: ProcedureTask;
   clientName: string;
   facility: string;
+  roomNumber: string;
   details: string;
   hasPdf: boolean;
   pdfFilename: string | null;
+  includedInBatch: boolean;
+  archived: boolean;
 }

@@ -30,14 +30,21 @@ import {
 import {
   cleanupStaleSharedReports,
   deleteCachedReport,
-  generateAndShareReport,
+  generateAndShareCompletedProcedures,
+  generateReport,
   shareStoredReport,
 } from './src/services/pdf';
 import {
+  addFacility,
+  archiveCompletedProcedures,
   deleteCompletedProcedure,
+  deleteFacility,
   HISTORY_PAGE_SIZE,
+  listFacilities,
   listCompletedProcedures,
   loadCompletedProcedurePdf,
+  markProceduresIncludedInBatch,
+  renameFacility,
   saveCompletedProcedure,
 } from './src/services/history';
 import {
@@ -63,7 +70,7 @@ import type {
   UserProfile,
 } from './src/types';
 
-type Route = 'home' | 'intake' | 'camera' | 'procedure' | 'review' | 'complete';
+type Route = 'home' | 'facilities' | 'intake' | 'camera' | 'procedure' | 'review';
 
 export default function App() {
   usePreventScreenCapture('iv-league-sensitive-content');
@@ -81,6 +88,9 @@ export default function App() {
   const [historyError, setHistoryError] = useState(false);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [facilities, setFacilities] = useState<string[]>([]);
+  const [facilitiesError, setFacilitiesError] = useState(false);
 
   const refreshAccount = () => {
     setLoading(true);
@@ -116,7 +126,7 @@ export default function App() {
     }
     setHistoryLoading(true);
     setHistoryError(false);
-    listCompletedProcedures()
+    listCompletedProcedures(0, showArchived)
       .then((page) => {
         if (active) {
           setCompletions(page.records);
@@ -136,12 +146,23 @@ export default function App() {
     return () => {
       active = false;
     };
+  }, [authenticated, showArchived]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      return;
+    }
+    setFacilitiesError(false);
+    listFacilities()
+      .then(setFacilities)
+      .catch(() => setFacilitiesError(true));
   }, [authenticated]);
 
   const resetWorkflow = () => {
     setClient(EMPTY_CLIENT);
     setProcedure({ task: null, size: null, side: null, location: null });
     setOcrNotice(false);
+    setShowArchived(false);
     setRoute('home');
   };
 
@@ -184,6 +205,9 @@ export default function App() {
         historyError={historyError}
         historyHasMore={historyHasMore}
         historyLoadingMore={historyLoadingMore}
+        showArchived={showArchived}
+        facilitiesCount={facilities.length}
+        facilitiesError={facilitiesError}
         onBiometricChange={(enabled) => setAccount({ ...account, biometricsEnabled: enabled })}
         onDeleteCompletion={async (record) => {
           if (record.pdfFilename) {
@@ -198,13 +222,28 @@ export default function App() {
           }
           setHistoryLoadingMore(true);
           try {
-            const page = await listCompletedProcedures(completions.length);
+            const page = await listCompletedProcedures(completions.length, showArchived);
             setCompletions((current) => [...current, ...page.records]);
             setHistoryHasMore(page.hasMore);
           } finally {
             setHistoryLoadingMore(false);
           }
         }}
+        onHistoryViewChange={(archived) => {
+          setCompletions([]);
+          setShowArchived(archived);
+        }}
+        onRecordsIncluded={(ids) => {
+          const selected = new Set(ids);
+          setCompletions((current) => current.map((record) => (
+            selected.has(record.id) ? { ...record, includedInBatch: true } : record
+          )));
+        }}
+        onRecordsArchived={(ids) => {
+          const selected = new Set(ids);
+          setCompletions((current) => current.filter((record) => !selected.has(record.id)));
+        }}
+        onManageFacilities={() => setRoute('facilities')}
         onStart={() => setRoute('intake')}
         onLogout={() => {
           resetWorkflow();
@@ -214,10 +253,32 @@ export default function App() {
     );
   }
 
+  if (route === 'facilities') {
+    return (
+      <FacilityDirectoryScreen
+        facilities={facilities}
+        onAdd={async (name) => {
+          await addFacility(name);
+          setFacilities(await listFacilities());
+        }}
+        onRename={async (currentName, nextName) => {
+          await renameFacility(currentName, nextName);
+          setFacilities(await listFacilities());
+        }}
+        onDelete={async (name) => {
+          await deleteFacility(name);
+          setFacilities(await listFacilities());
+        }}
+        onBack={() => setRoute('home')}
+      />
+    );
+  }
+
   if (route === 'intake') {
     return (
       <IntakeScreen
         client={client}
+        facilities={facilities}
         ocrNotice={ocrNotice}
         onChange={setClient}
         onScan={() => setRoute('camera')}
@@ -259,12 +320,12 @@ export default function App() {
         procedure={procedure}
         onHistorySaved={(record) => setCompletions((current) => [record, ...current])}
         onBack={() => setRoute('procedure')}
-        onComplete={() => setRoute('complete')}
+        onComplete={resetWorkflow}
       />
     );
   }
 
-  return <CompleteScreen onDone={resetWorkflow} />;
+  return null;
 }
 
 function LoadingScreen() {
@@ -388,9 +449,16 @@ function HomeScreen({
   historyError,
   historyHasMore,
   historyLoadingMore,
+  showArchived,
+  facilitiesCount,
+  facilitiesError,
   onBiometricChange,
   onDeleteCompletion,
   onLoadMore,
+  onHistoryViewChange,
+  onRecordsIncluded,
+  onRecordsArchived,
+  onManageFacilities,
   onStart,
   onLogout,
 }: {
@@ -401,18 +469,32 @@ function HomeScreen({
   historyError: boolean;
   historyHasMore: boolean;
   historyLoadingMore: boolean;
+  showArchived: boolean;
+  facilitiesCount: number;
+  facilitiesError: boolean;
   onBiometricChange: (enabled: boolean) => void;
   onDeleteCompletion: (record: CompletedProcedure) => Promise<void>;
   onLoadMore: () => Promise<void>;
+  onHistoryViewChange: (archived: boolean) => void;
+  onRecordsIncluded: (ids: number[]) => void;
+  onRecordsArchived: (ids: number[]) => void;
+  onManageFacilities: () => void;
   onStart: () => void;
   onLogout: () => void;
 }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [sharingHistoryId, setSharingHistoryId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
 
   useEffect(() => {
     getBiometricCapability().then(setBiometricAvailable).catch(() => setBiometricAvailable(false));
   }, []);
+
+  useEffect(() => {
+    const visibleIds = new Set(completions.map((record) => record.id));
+    setSelectedIds((current) => new Set([...current].filter((id) => visibleIds.has(id))));
+  }, [completions]);
 
   const toggleBiometrics = async () => {
     try {
@@ -468,6 +550,76 @@ function HomeScreen({
     }
   };
 
+  const selectedRecords = completions.filter((record) => selectedIds.has(record.id));
+  const toggleSelected = (id: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const createCompletedProceduresDocument = async () => {
+    if (selectedRecords.length === 0) {
+      Alert.alert('Select procedures', 'Choose at least one completed procedure.');
+      return;
+    }
+    setBatchBusy(true);
+    const ids = selectedRecords.map((record) => record.id);
+    try {
+      await generateAndShareCompletedProcedures(profile, selectedRecords);
+    } catch {
+      Alert.alert('Document not created', 'The selected procedures could not be prepared or shared.');
+      setBatchBusy(false);
+      return;
+    }
+    try {
+      await markProceduresIncludedInBatch(ids);
+      onRecordsIncluded(ids);
+    } catch {
+      Alert.alert(
+        'Document shared; archive unavailable',
+        'The procedures could not be marked as included. Create the document again before archiving them.',
+      );
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
+  const archiveSelected = () => {
+    const eligible = selectedRecords.filter((record) => record.includedInBatch);
+    if (eligible.length !== selectedRecords.length || eligible.length === 0) {
+      Alert.alert(
+        'Create the document first',
+        'Only procedures already added to a Completed Procedures document can be archived.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Archive selected procedures?',
+      `${eligible.length} procedure${eligible.length === 1 ? '' : 's'} will move to Archived.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          onPress: () => {
+            const ids = eligible.map((record) => record.id);
+            archiveCompletedProcedures(ids)
+              .then(() => {
+                onRecordsArchived(ids);
+                setSelectedIds(new Set());
+              })
+              .catch(() => Alert.alert('Archive failed', 'The encrypted procedure records could not be archived.'));
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <AppScreen>
       <BrandHeader subtitle={`${profile.name}, ${profile.credentials}`} />
@@ -477,6 +629,15 @@ function HomeScreen({
         <Text style={styles.heroBody}>Client data is used only for the current report and is cleared when you finish.</Text>
         <PrimaryButton label="Start client intake" onPress={onStart} />
       </View>
+      <Pressable accessibilityRole="button" style={styles.settingRow} onPress={onManageFacilities}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.settingTitle}>Facility directory</Text>
+          <Text style={styles.settingBody}>
+            {facilitiesError ? 'Directory unavailable' : `${facilitiesCount} facilit${facilitiesCount === 1 ? 'y' : 'ies'} configured`}
+          </Text>
+        </View>
+        <Text style={styles.disclosure}>›</Text>
+      </Pressable>
       {biometricAvailable ? (
         <Pressable accessibilityRole="switch" accessibilityState={{ checked: biometricsEnabled }} style={styles.settingRow} onPress={toggleBiometrics}>
           <View style={{ flex: 1 }}>
@@ -490,22 +651,52 @@ function HomeScreen({
       ) : null}
       <View style={styles.historySection}>
         <Text style={styles.historyHeading}>Completed procedures</Text>
-        <Text style={styles.privacyNote}>Encrypted on this device. The history summary excludes date of birth, medical record number, and room; the attached encrypted PDF retains the complete report.</Text>
+        <Text style={styles.privacyNote}>Encrypted on this device. Select active procedures to create a combined Completed Procedures PDF, then archive them when finished.</Text>
+        <View style={styles.segmentedControl}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: !showArchived }}
+            onPress={() => onHistoryViewChange(false)}
+            style={[styles.segment, !showArchived && styles.segmentSelected]}
+          >
+            <Text style={[styles.segmentText, !showArchived && styles.segmentTextSelected]}>Active</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: showArchived }}
+            onPress={() => onHistoryViewChange(true)}
+            style={[styles.segment, showArchived && styles.segmentSelected]}
+          >
+            <Text style={[styles.segmentText, showArchived && styles.segmentTextSelected]}>Archived</Text>
+          </Pressable>
+        </View>
         {historyLoading ? <ActivityIndicator color={COLORS.teal} /> : null}
         {historyError ? <Text style={styles.historyError}>Completion history could not be opened securely.</Text> : null}
         {!historyLoading && !historyError && completions.length === 0 ? (
           <View style={styles.emptyHistory}>
-            <Text style={styles.emptyHistoryTitle}>No completed procedures yet</Text>
-            <Text style={styles.settingBody}>Records appear here after a PDF is created.</Text>
+            <Text style={styles.emptyHistoryTitle}>{showArchived ? 'No archived procedures' : 'No completed procedures yet'}</Text>
+            <Text style={styles.settingBody}>{showArchived ? 'Archived records appear here.' : 'Records appear here after a PDF is created.'}</Text>
           </View>
         ) : null}
         {completions.map((record) => (
           <View key={record.id} style={styles.historyCard}>
+            {!showArchived ? (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selectedIds.has(record.id) }}
+                accessibilityLabel={`Select ${record.task} for ${record.clientName}`}
+                onPress={() => toggleSelected(record.id)}
+                style={[styles.checkbox, selectedIds.has(record.id) && styles.checkboxChecked]}
+              >
+                {selectedIds.has(record.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+              </Pressable>
+            ) : null}
             <View style={{ flex: 1 }}>
               <Text style={styles.historyTask}>{record.task}</Text>
               <Text style={styles.historyClient}>{record.clientName}</Text>
-              <Text style={styles.historyMeta}>{record.facility} · {new Date(record.completedAt).toLocaleString()}</Text>
+              <Text style={styles.historyMeta}>{record.facility} · Room {record.roomNumber || 'not recorded'} · {new Date(record.completedAt).toLocaleString()}</Text>
               {record.details ? <Text style={styles.historyDetails}>{record.details}</Text> : null}
+              {record.includedInBatch && !record.archived ? <Text style={styles.includedText}>Added to Completed Procedures document</Text> : null}
             </View>
             <View style={styles.historyActions}>
               {record.hasPdf ? (
@@ -525,6 +716,16 @@ function HomeScreen({
             </View>
           </View>
         ))}
+        {!showArchived && selectedRecords.length > 0 ? (
+          <View style={styles.batchActions}>
+            <PrimaryButton
+              label={`Create and send Completed Procedures (${selectedRecords.length})`}
+              onPress={createCompletedProceduresDocument}
+              busy={batchBusy}
+            />
+            <SecondaryButton label="Archive selected" onPress={archiveSelected} />
+          </View>
+        ) : null}
         {historyHasMore ? (
           <SecondaryButton
             label={historyLoadingMore ? 'Loading...' : `Load ${HISTORY_PAGE_SIZE} older procedures`}
@@ -541,6 +742,7 @@ function HomeScreen({
 
 function IntakeScreen({
   client,
+  facilities,
   ocrNotice,
   onChange,
   onScan,
@@ -548,6 +750,7 @@ function IntakeScreen({
   onContinue,
 }: {
   client: Client;
+  facilities: string[];
   ocrNotice: boolean;
   onChange: (client: Client) => void;
   onScan: () => void;
@@ -557,6 +760,10 @@ function IntakeScreen({
   const update = (key: keyof Client, value: string) => onChange({ ...client, [key]: value });
   const continueFlow = () => {
     const missing = validateClient(client);
+    if (!facilities.includes(client.facility)) {
+      Alert.alert('Select a facility', 'Choose a facility from your directory.');
+      return;
+    }
     if (missing.length) {
       Alert.alert('Client information incomplete', `Review: ${missing.join(', ')}.`);
       return;
@@ -572,9 +779,96 @@ function IntakeScreen({
       <Field label="Name" value={client.name} onChangeText={(value) => update('name', value)} autoCapitalize="words" />
       <Field label="Date of birth" value={client.dateOfBirth} onChangeText={(value) => update('dateOfBirth', value)} placeholder="MM/DD/YYYY" keyboardType="numbers-and-punctuation" />
       <Field label="Medical record number" value={client.medicalRecordNumber} onChangeText={(value) => update('medicalRecordNumber', value)} autoCapitalize="characters" />
-      <Field label="Facility" value={client.facility} onChangeText={(value) => update('facility', value)} autoCapitalize="words" />
+      <ChoiceGroup label="Facility" options={facilities} value={facilities.includes(client.facility) ? client.facility : null} onSelect={(facility) => update('facility', facility)} />
+      {facilities.length === 0 ? (
+        <Text style={styles.historyError}>No facilities are configured. Return home and add one in Facility directory.</Text>
+      ) : null}
+      {client.facility && !facilities.includes(client.facility) ? (
+        <Text style={styles.historyError}>The scanned facility is not in your directory. Select a configured facility.</Text>
+      ) : null}
       <Field label="Room number" value={client.roomNumber} onChangeText={(value) => update('roomNumber', value)} />
       <PrimaryButton label="Continue to procedure" onPress={continueFlow} />
+    </AppScreen>
+  );
+}
+
+function FacilityDirectoryScreen({
+  facilities,
+  onAdd,
+  onRename,
+  onDelete,
+  onBack,
+}: {
+  facilities: string[];
+  onAdd: (name: string) => Promise<void>;
+  onRename: (currentName: string, nextName: string) => Promise<void>;
+  onDelete: (name: string) => Promise<void>;
+  onBack: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) {
+      Alert.alert('Facility name required', 'Enter a facility name.');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (editing) {
+        await onRename(editing, name);
+      } else {
+        await onAdd(name);
+      }
+      setName('');
+      setEditing(null);
+    } catch {
+      Alert.alert('Facility not saved', 'Use a unique facility name and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = (facility: string) => {
+    Alert.alert(
+      'Remove facility?',
+      `${facility} will no longer appear during client intake. Existing procedure records are unchanged.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            onDelete(facility).catch(() => {
+              Alert.alert('Facility not removed', 'The facility directory could not be updated.');
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <AppScreen>
+      <StepHeader step="SETTINGS" title="Facility directory" onBack={onBack} />
+      <Text style={styles.body}>Facilities in this encrypted directory appear as choices during client intake.</Text>
+      <Field label={editing ? 'Edit facility name' : 'New facility name'} value={name} onChangeText={setName} autoCapitalize="words" />
+      <PrimaryButton label={editing ? 'Save facility' : 'Add facility'} onPress={save} busy={busy} />
+      {editing ? <SecondaryButton label="Cancel editing" onPress={() => { setEditing(null); setName(''); }} /> : null}
+      {facilities.length === 0 ? (
+        <View style={styles.emptyHistory}><Text style={styles.emptyHistoryTitle}>No facilities configured</Text></View>
+      ) : facilities.map((facility) => (
+        <View key={facility} style={styles.facilityRow}>
+          <Text style={styles.facilityName}>{facility}</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setEditing(facility); setName(facility); }}>
+            <Text style={styles.sendPdfText}>Edit</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => confirmDelete(facility)}>
+            <Text style={styles.deleteText}>Remove</Text>
+          </Pressable>
+        </View>
+      ))}
     </AppScreen>
   );
 }
@@ -705,21 +999,23 @@ function ReviewScreen({
     try {
       const record = completionRecord.current ?? { profile, client, procedure, completedAt: new Date() };
       completionRecord.current = record;
-      await generateAndShareReport(record, async ({ uri, filename }) => {
-        if (savedHistoryId !== null) {
-          return;
-        }
-        try {
-          const saved = await saveCompletedProcedure(record, uri, filename);
-          setSavedHistoryId(saved.id);
-          onHistorySaved(saved);
-        } catch {
-          Alert.alert('History not saved', 'The PDF was created, but its encrypted completion summary could not be saved.');
-        }
-      });
+      if (savedHistoryId !== null) {
+        return;
+      }
+      const report = await generateReport(record);
+      let saved: CompletedProcedure;
+      try {
+        saved = await saveCompletedProcedure(record, report.uri, report.filename);
+      } finally {
+        await FileSystem.deleteAsync(report.uri, { idempotent: true }).catch(() => {
+          Alert.alert('Privacy cleanup warning', 'The temporary PDF could not be removed from protected app cache.');
+        });
+      }
+      setSavedHistoryId(saved.id);
+      onHistorySaved(saved);
       onComplete();
     } catch {
-      Alert.alert('PDF could not be shared', 'The completion record could not be generated or the share sheet is unavailable.');
+      Alert.alert('Completion not saved', 'The PDF and encrypted completion record could not be saved.');
     } finally {
       setBusy(false);
     }
@@ -745,24 +1041,8 @@ function ReviewScreen({
         <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>{confirmed ? <Text style={styles.checkmark}>✓</Text> : null}</View>
         <Text style={styles.confirmText}>I reviewed the client and procedure information and confirm it is accurate.</Text>
       </Pressable>
-      <Text style={styles.privacyNote}>
-        The PDF opens in the system share sheet. Choose your preferred email app or another approved destination.
-        {Platform.OS === 'android'
-          ? ' If Gmail does not attach it automatically, attach the same file from Downloads/IV League. Temporary copies are removed after one hour.'
-          : ' A protected cache copy is retained briefly so the selected service can attach it, then removed automatically.'}
-      </Text>
-      <PrimaryButton label="Generate PDF and choose email app" onPress={generate} busy={busy} disabled={!confirmed} />
-    </AppScreen>
-  );
-}
-
-function CompleteScreen({ onDone }: { onDone: () => void }) {
-  return (
-    <AppScreen>
-      <View style={styles.successIcon}><Text style={styles.successCheck}>✓</Text></View>
-      <Text style={[styles.title, { textAlign: 'center' }]}>Completion record created</Text>
-      <Text style={[styles.body, { textAlign: 'center' }]}>The PDF was handed to your selected email or sharing service. Client information will be cleared when you return home.</Text>
-      <PrimaryButton label="Return home" onPress={onDone} />
+      <Text style={styles.privacyNote}>The PDF will be encrypted and attached to this procedure in Completed procedures. It will not be sent until you choose Send PDF.</Text>
+      <PrimaryButton label="Generate PDF and save procedure" onPress={generate} busy={busy} disabled={!confirmed} />
     </AppScreen>
   );
 }
@@ -908,6 +1188,7 @@ const styles = StyleSheet.create({
   settingRow: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   settingTitle: { color: COLORS.text, fontWeight: '700', fontSize: 15 },
   settingBody: { color: COLORS.muted, fontSize: 13, marginTop: 3 },
+  disclosure: { color: COLORS.teal, fontSize: 28, fontWeight: '500' },
   switchTrack: { width: 48, height: 28, borderRadius: 14, backgroundColor: COLORS.border, padding: 3 },
   switchTrackOn: { backgroundColor: COLORS.teal },
   switchThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'white' },
@@ -941,6 +1222,11 @@ const styles = StyleSheet.create({
   successCheck: { color: COLORS.teal, fontSize: 38, fontWeight: '900' },
   historySection: { gap: 12, marginTop: 4 },
   historyHeading: { color: COLORS.navy, fontSize: 22, fontWeight: '800' },
+  segmentedControl: { flexDirection: 'row', backgroundColor: COLORS.border, borderRadius: 12, padding: 3 },
+  segment: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9 },
+  segmentSelected: { backgroundColor: COLORS.white },
+  segmentText: { color: COLORS.muted, fontWeight: '700' },
+  segmentTextSelected: { color: COLORS.navy },
   historyError: { color: '#9A3412', backgroundColor: '#FFF0E8', borderRadius: 12, padding: 14, fontWeight: '600' },
   emptyHistory: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 18, gap: 4 },
   emptyHistoryTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
@@ -949,7 +1235,11 @@ const styles = StyleSheet.create({
   historyClient: { color: COLORS.navy, fontSize: 17, fontWeight: '800', marginTop: 4 },
   historyMeta: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   historyDetails: { color: COLORS.text, fontSize: 13, fontWeight: '600', marginTop: 5 },
+  includedText: { color: '#155C5A', fontSize: 11, fontWeight: '700', marginTop: 6 },
   historyActions: { alignItems: 'flex-end', gap: 14 },
+  batchActions: { backgroundColor: COLORS.paleTeal, borderRadius: 15, padding: 12, gap: 2 },
+  facilityRow: { backgroundColor: COLORS.white, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 18 },
+  facilityName: { color: COLORS.navy, fontSize: 16, fontWeight: '700', flex: 1 },
   sendPdfText: { color: COLORS.teal, fontSize: 13, fontWeight: '800' },
   pdfUnavailable: { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
   deleteText: { color: '#B42318', fontSize: 13, fontWeight: '700' },
