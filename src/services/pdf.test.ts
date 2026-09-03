@@ -110,10 +110,34 @@ describe('PDF report', () => {
     );
 
     expect(html).toContain('Demo Clinician, RN');
-    expect(html).toContain('2026-09-01 through 2026-09-01');
+    expect(html).toContain('09/01/2026 through 09/01/2026');
     expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
     expect(html).toContain('IV Insertion - 20ga · Right Forearm');
     expect(buildCompletedProceduresFilename([...records]))
       .toBe('Completed Procedures_2026-09-01_to_2026-09-01.pdf');
+  });
+
+  it('includes side and location but not catheter size for a blood draw', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Blood Draw',
+        size: null,
+        side: 'Left',
+        location: 'Antecubital',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Side</th><td>Left</td>');
+    expect(html).toContain('<th>Location</th><td>Antecubital</td>');
+    expect(html).not.toContain('<th>Size</th>');
   });
 });

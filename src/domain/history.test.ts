@@ -46,4 +46,26 @@ describe('completion history', () => {
       completedAt: new Date(),
     })).toThrow('must have a task');
   });
+
+  it('stores blood draw side and location without a catheter size', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Blood Draw',
+        size: null,
+        side: 'Left',
+        location: 'Antecubital',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe('Left Antecubital');
+  });
 });

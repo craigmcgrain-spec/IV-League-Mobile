@@ -1,3 +1,4 @@
+import { needsCatheterSize, needsProcedureDetails } from './workflow';
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
 export type NewCompletedProcedure = Omit<
@@ -9,9 +10,12 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
   if (!record.procedure.task) {
     throw new Error('A completed procedure must have a task');
   }
-  const details = record.procedure.size && record.procedure.side && record.procedure.location
-    ? `${record.procedure.size} · ${record.procedure.side} ${record.procedure.location}`
-    : '';
+  const details = [
+    needsCatheterSize(record.procedure.task) ? record.procedure.size : null,
+    needsProcedureDetails(record.procedure.task) && record.procedure.side && record.procedure.location
+      ? `${record.procedure.side} ${record.procedure.location}`
+      : null,
+  ].filter(Boolean).join(' · ');
 
   return {
     completedAt: record.completedAt.toISOString(),

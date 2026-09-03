@@ -1,4 +1,5 @@
 import {
+  needsCatheterSize,
   needsProcedureDetails,
   parseIntakeText,
   validateClient,
@@ -32,7 +33,8 @@ describe('workflow', () => {
     })).toEqual(['date of birth', 'room number']);
   });
 
-  it('requires one size, side, and location for IV and PICC procedures', () => {
+  it('requires size, side, and location for IV and PICC procedures', () => {
+    expect(needsCatheterSize('IV Insertion')).toBe(true);
     expect(needsProcedureDetails('PICC Insertion')).toBe(true);
     expect(validateProcedure({
       task: 'IV Insertion',
@@ -42,12 +44,20 @@ describe('workflow', () => {
     })).toEqual(['side', 'location']);
   });
 
-  it('does not request catheter details for other tasks', () => {
+  it('requires side and location but not catheter size for blood draws', () => {
+    expect(needsCatheterSize('Blood Draw')).toBe(false);
+    expect(needsProcedureDetails('Blood Draw')).toBe(true);
     expect(validateProcedure({
       task: 'Blood Draw',
       size: null,
       side: null,
       location: null,
+    })).toEqual(['side', 'location']);
+    expect(validateProcedure({
+      task: 'Blood Draw',
+      size: null,
+      side: 'Left',
+      location: 'Antecubital',
     })).toEqual([]);
   });
 });

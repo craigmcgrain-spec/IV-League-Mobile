@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-import { needsProcedureDetails } from '../domain/workflow';
+import { needsCatheterSize, needsProcedureDetails } from '../domain/workflow';
 import {
   cleanupSharedPdfExports,
   deleteSharedPdfExports,
@@ -26,7 +26,7 @@ function row(label: string, value: string): string {
 export function buildReportHtml(record: CompletionRecord): string {
   const { profile, client, procedure, completedAt } = record;
   const details = needsProcedureDetails(procedure.task)
-    ? `${row('Size', procedure.size ?? '')}${row('Side', procedure.side ?? '')}${row('Location', procedure.location ?? '')}`
+    ? `${needsCatheterSize(procedure.task) ? row('Size', procedure.size ?? '') : ''}${row('Side', procedure.side ?? '')}${row('Location', procedure.location ?? '')}`
     : '';
 
   return `<!doctype html>
@@ -88,23 +88,35 @@ export function buildAttachmentFilename(record: CompletionRecord): string {
   return `${facility}_${clientName}_${date}.pdf`;
 }
 
-function formatDateRange(records: CompletedProcedure[]): { start: string; end: string } {
+function formatDateRange(records: CompletedProcedure[]): {
+  filenameStart: string;
+  filenameEnd: string;
+  displayStart: string;
+  displayEnd: string;
+} {
   const timestamps = records.map((record) => new Date(record.completedAt).getTime());
-  const formatLocalDate = (timestamp: number) => {
+  const formatLocalDate = (timestamp: number, separator: string, yearFirst: boolean) => {
     const date = new Date(timestamp);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return yearFirst
+      ? `${year}${separator}${month}${separator}${day}`
+      : `${month}${separator}${day}${separator}${year}`;
   };
-  const start = formatLocalDate(Math.min(...timestamps));
-  const end = formatLocalDate(Math.max(...timestamps));
-  return { start, end };
+  const start = Math.min(...timestamps);
+  const end = Math.max(...timestamps);
+  return {
+    filenameStart: formatLocalDate(start, '-', true),
+    filenameEnd: formatLocalDate(end, '-', true),
+    displayStart: formatLocalDate(start, '/', false),
+    displayEnd: formatLocalDate(end, '/', false),
+  };
 }
 
 export function buildCompletedProceduresFilename(records: CompletedProcedure[]): string {
-  const { start, end } = formatDateRange(records);
-  return `Completed Procedures_${start}_to_${end}.pdf`;
+  const { filenameStart, filenameEnd } = formatDateRange(records);
+  return `Completed Procedures_${filenameStart}_to_${filenameEnd}.pdf`;
 }
 
 export function buildCompletedProceduresHtml(
@@ -117,7 +129,7 @@ export function buildCompletedProceduresHtml(
   const ordered = [...records].sort(
     (left, right) => new Date(left.completedAt).getTime() - new Date(right.completedAt).getTime(),
   );
-  const { start, end } = formatDateRange(ordered);
+  const { displayStart, displayEnd } = formatDateRange(ordered);
   const procedures = ordered.map((record) => {
     const completedAt = new Date(record.completedAt);
     const taskDetails = record.details ? `${record.task} - ${record.details}` : record.task;
@@ -144,7 +156,7 @@ h1 { color: #12283f; font-size: 22px; margin: 0 0 22px; }
 </style></head><body>
 <div class="letterhead">
   <div class="name">${escapeHtml(profile.name)}, ${escapeHtml(profile.credentials)}</div>
-  <div class="range">${escapeHtml(start)} through ${escapeHtml(end)}</div>
+  <div class="range">${escapeHtml(displayStart)} through ${escapeHtml(displayEnd)}</div>
 </div>
 <h1>Completed Procedures</h1>
 ${procedures}

@@ -13,8 +13,12 @@ export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
 export const SIDES = ['Right', 'Left'] as const;
 export const LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
 
-export function needsProcedureDetails(task: ProcedureTask | null): boolean {
+export function needsCatheterSize(task: ProcedureTask | null): boolean {
   return task === 'IV Insertion' || task === 'PICC Insertion';
+}
+
+export function needsProcedureDetails(task: ProcedureTask | null): boolean {
+  return needsCatheterSize(task) || task === 'Blood Draw';
 }
 
 export function validateClient(client: Client): string[] {
@@ -36,7 +40,7 @@ export function validateProcedure(procedure: Procedure): string[] {
     return [];
   }
   return [
-    !procedure.size ? 'size' : '',
+    needsCatheterSize(procedure.task) && !procedure.size ? 'size' : '',
     !procedure.side ? 'side' : '',
     !procedure.location ? 'location' : '',
   ].filter(Boolean);

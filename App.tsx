@@ -53,6 +53,7 @@ import {
   LOCATIONS,
   SIDES,
   TASKS,
+  needsCatheterSize,
   needsProcedureDetails,
   parseIntakeText,
   validateClient,
@@ -979,7 +980,12 @@ function ProcedureScreen({
   onContinue: () => void;
 }) {
   const chooseTask = (task: ProcedureTask) => {
-    onChange(needsProcedureDetails(task) ? { ...procedure, task } : { task, size: null, side: null, location: null });
+    onChange({
+      task,
+      size: needsCatheterSize(task) ? procedure.size : null,
+      side: needsProcedureDetails(task) ? procedure.side : null,
+      location: needsProcedureDetails(task) ? procedure.location : null,
+    });
   };
   const continueFlow = () => {
     const missing = validateProcedure(procedure);
@@ -996,7 +1002,9 @@ function ProcedureScreen({
       <ChoiceGroup label="Task completed" options={TASKS} value={procedure.task} onSelect={chooseTask} />
       {needsProcedureDetails(procedure.task) ? (
         <>
-          <ChoiceGroup label="Catheter size" options={GAUGES} value={procedure.size} onSelect={(size) => onChange({ ...procedure, size: size as ProcedureSize })} compact />
+          {needsCatheterSize(procedure.task) ? (
+            <ChoiceGroup label="Catheter size" options={GAUGES} value={procedure.size} onSelect={(size) => onChange({ ...procedure, size: size as ProcedureSize })} compact />
+          ) : null}
           <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
           <ChoiceGroup label="Location" options={LOCATIONS} value={procedure.location} onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })} />
         </>
@@ -1070,7 +1078,11 @@ function ReviewScreen({
       <ReviewCard title="Procedure" rows={[
         ['Task', procedure.task ?? ''],
         ...(needsProcedureDetails(procedure.task)
-          ? [['Size', procedure.size ?? ''], ['Side', procedure.side ?? ''], ['Location', procedure.location ?? '']] as [string, string][]
+          ? [
+            ...(needsCatheterSize(procedure.task) ? [['Size', procedure.size ?? '']] as [string, string][] : []),
+            ['Side', procedure.side ?? ''],
+            ['Location', procedure.location ?? ''],
+          ] as [string, string][]
           : []),
       ]} />
       <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: confirmed }} style={styles.confirmRow} onPress={() => setConfirmed(!confirmed)}>
