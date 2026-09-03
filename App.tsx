@@ -45,6 +45,7 @@ import {
   loadCompletedProcedurePdf,
   markProceduresIncludedInBatch,
   renameFacility,
+  restoreCompletedProcedure,
   saveCompletedProcedure,
 } from './src/services/history';
 import {
@@ -53,6 +54,7 @@ import {
   LOCATIONS,
   SIDES,
   TASKS,
+  formatDateOfBirthInput,
   formatProcedureDateTime,
   needsCatheterLength,
   needsCatheterSize,
@@ -229,6 +231,10 @@ export default function App() {
             await deleteCachedReport(record.pdfFilename);
           }
           await deleteCompletedProcedure(record.id);
+          setCompletions((current) => current.filter((item) => item.id !== record.id));
+        }}
+        onRestoreCompletion={async (record) => {
+          await restoreCompletedProcedure(record.id);
           setCompletions((current) => current.filter((item) => item.id !== record.id));
         }}
         onLoadMore={async () => {
@@ -494,6 +500,7 @@ function HomeScreen({
   facilitiesError,
   onBiometricChange,
   onDeleteCompletion,
+  onRestoreCompletion,
   onLoadMore,
   onHistoryViewChange,
   onRecordsIncluded,
@@ -514,6 +521,7 @@ function HomeScreen({
   facilitiesError: boolean;
   onBiometricChange: (enabled: boolean) => void;
   onDeleteCompletion: (record: CompletedProcedure) => Promise<void>;
+  onRestoreCompletion: (record: CompletedProcedure) => Promise<void>;
   onLoadMore: () => Promise<void>;
   onHistoryViewChange: (archived: boolean) => void;
   onRecordsIncluded: (ids: number[]) => void;
@@ -526,6 +534,7 @@ function HomeScreen({
   const [sharingHistoryId, setSharingHistoryId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
+  const [restoringHistoryId, setRestoringHistoryId] = useState<number | null>(null);
 
   useEffect(() => {
     getBiometricCapability().then(setBiometricAvailable).catch(() => setBiometricAvailable(false));
@@ -572,6 +581,17 @@ function HomeScreen({
         },
       ],
     );
+  };
+
+  const restoreArchived = async (record: CompletedProcedure) => {
+    setRestoringHistoryId(record.id);
+    try {
+      await onRestoreCompletion(record);
+    } catch {
+      Alert.alert('Record not restored', 'The encrypted completion record could not be returned to Active.');
+    } finally {
+      setRestoringHistoryId(null);
+    }
   };
 
   const resendPdf = async (record: CompletedProcedure) => {
@@ -750,6 +770,19 @@ function HomeScreen({
                   <Text style={styles.sendPdfText}>{sharingHistoryId === record.id ? 'Opening...' : 'Send PDF'}</Text>
                 </Pressable>
               ) : <Text style={styles.pdfUnavailable}>PDF unavailable</Text>}
+              {showArchived ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Restore ${record.task} for ${record.clientName} to Active`}
+                  disabled={restoringHistoryId !== null}
+                  onPress={() => restoreArchived(record)}
+                  hitSlop={8}
+                >
+                  <Text style={styles.sendPdfText}>
+                    {restoringHistoryId === record.id ? 'Restoring...' : 'Restore to Active'}
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${record.task} for ${record.clientName}`} onPress={() => confirmDelete(record)} hitSlop={8}>
                 <Text style={styles.deleteText}>Delete</Text>
               </Pressable>
@@ -864,7 +897,14 @@ function IntakeScreen({
         autoCapitalize="characters"
       />
       <Field label="Name" value={client.name} onChangeText={(value) => update('name', value)} autoCapitalize="words" />
-      <Field label="Date of birth" value={client.dateOfBirth} onChangeText={(value) => update('dateOfBirth', value)} placeholder="MM/DD/YYYY" keyboardType="numbers-and-punctuation" />
+      <Field
+        label="Date of birth"
+        value={client.dateOfBirth}
+        onChangeText={(value) => update('dateOfBirth', formatDateOfBirthInput(value))}
+        placeholder="MM/DD/YYYY"
+        keyboardType="number-pad"
+        maxLength={10}
+      />
       <Field label="Medical record number" value={client.medicalRecordNumber} onChangeText={(value) => update('medicalRecordNumber', value)} autoCapitalize="characters" />
       <ChoiceGroup label="Facility" options={facilities} value={facilities.includes(client.facility) ? client.facility : null} onSelect={(facility) => update('facility', facility)} />
       {facilities.length === 0 ? (

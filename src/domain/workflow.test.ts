@@ -1,4 +1,5 @@
 import {
+  formatDateOfBirthInput,
   formatProcedureDateTime,
   needsCatheterLength,
   needsCatheterSize,
@@ -10,6 +11,14 @@ import {
 } from './workflow';
 
 describe('workflow', () => {
+  it('inserts date-of-birth separators while typing or pasting', () => {
+    expect(formatDateOfBirthInput('1')).toBe('1');
+    expect(formatDateOfBirthInput('010')).toBe('01/0');
+    expect(formatDateOfBirthInput('01021980')).toBe('01/02/1980');
+    expect(formatDateOfBirthInput('01/02/1980')).toBe('01/02/1980');
+    expect(formatDateOfBirthInput('01021980123')).toBe('01/02/1980');
+  });
+
   it('formats and parses editable local procedure dates and times', () => {
     const source = new Date(2026, 8, 2, 21, 7);
     expect(formatProcedureDateTime(source)).toEqual({
@@ -25,7 +34,7 @@ describe('workflow', () => {
   it('extracts labeled intake fields without guessing unlabeled patient data', () => {
     expect(parseIntakeText(`
       Name: Demo Patient
-      DOB: 01/02/1980
+      DOB: 01021980
       MRN # SAFE-001
       Facility: Demo Medical Center
       Room: 204B

@@ -7,7 +7,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Local clinician profile with name and professional credentials
 - Password authentication using native PBKDF2-SHA-256 (210,000 iterations, random salt) with the account stored in iOS Keychain / Android Keystore-backed secure storage
 - Optional device biometric login using the platform authentication prompt
-- Client intake for an editable procedure date/time (defaulting to now), name, date of birth, medical record number, facility, and room
+- Client intake for an editable procedure date/time (defaulting to now), name, auto-formatted date of birth, medical record number, facility, and room
 - Editable encrypted facility directory with facility selection and inline facility creation during intake
 - Camera capture with on-device Google ML Kit text recognition; recognized values always return to editable fields for review
 - IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
@@ -15,7 +15,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Explicit final confirmation before generating a letterheaded PDF
 - Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename, provider-safe temporary file retention, and reliable Android URI grants
 - Authenticated, paged completed-procedure history with encrypted PDF resend and secure per-record deletion
-- Selectable combined Completed Procedures PDFs and an archived-procedure view
+- Selectable combined Completed Procedures PDFs and an archived-procedure view with restore-to-active support
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
 Patient data is never logged. Only the encrypted completion history and its encrypted PDF attachment persist after the active workflow is cleared. Use demo-safe data during development.

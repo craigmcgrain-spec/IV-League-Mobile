@@ -95,6 +95,17 @@ export function validateProcedure(procedure: Procedure): string[] {
   ].filter(Boolean);
 }
 
+export function formatDateOfBirthInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 const LABELS: [keyof Client, RegExp][] = [
   ['dateOfBirth', /^(?:date\s*of\s*birth|dob)\s*[:#-]?\s*(.+)$/i],
   ['medicalRecordNumber', /^(?:medical\s*record\s*(?:number|no\.?)?|mrn)\s*[:#-]?\s*(.+)$/i],
@@ -111,7 +122,8 @@ export function parseIntakeText(text: string): Partial<Client> {
     for (const [field, pattern] of LABELS) {
       const match = line.match(pattern);
       if (match?.[1]) {
-        parsed[field] = match[1].trim();
+        const value = match[1].trim();
+        parsed[field] = field === 'dateOfBirth' ? formatDateOfBirthInput(value) : value;
         break;
       }
     }

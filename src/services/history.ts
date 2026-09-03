@@ -198,6 +198,14 @@ export async function archiveCompletedProcedures(ids: number[]): Promise<void> {
   );
 }
 
+export async function restoreCompletedProcedure(id: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE completed_procedures SET archived_at = NULL WHERE id = ? AND archived_at IS NOT NULL',
+    id,
+  );
+}
+
 export async function listFacilities(): Promise<string[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<{ name: string }>(
