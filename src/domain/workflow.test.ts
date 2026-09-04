@@ -2,6 +2,7 @@ import {
   defaultAttemptsForTask,
   formatDateOfBirthInput,
   formatProcedureDateTime,
+  locationsForTask,
   needsCatheterLength,
   needsCatheterSize,
   needsAttempts,
@@ -167,6 +168,36 @@ describe('workflow', () => {
       attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
+    })).toEqual([]);
+  });
+
+  it('limits Port Access to Chest and adds Port to Dressing Change', () => {
+    expect(locationsForTask('Port Access')).toEqual(['Chest']);
+    expect(locationsForTask('Dressing Change')).toContain('Port');
+    expect(locationsForTask('IV Insertion')).not.toContain('Port');
+    expect(validateProcedure({
+      task: 'Port Access',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: 'Right',
+      location: 'Port',
+    })).toEqual(['location']);
+    expect(validateProcedure({
+      task: 'Port Access',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: 'Right',
+      location: 'Chest',
+    })).toEqual([]);
+    expect(validateProcedure({
+      task: 'Dressing Change',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: 'Left',
+      location: 'Port',
     })).toEqual([]);
   });
 });

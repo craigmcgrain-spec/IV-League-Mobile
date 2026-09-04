@@ -16,11 +16,19 @@ export type ProcedureTask =
   | 'Midline Insertion'
   | 'PICC Insertion'
   | 'Blood Draw'
-  | 'Dressing Change';
+  | 'Dressing Change'
+  | 'Port Access';
 export type ProcedureSize = '24ga' | '22ga' | '20ga' | '18ga' | '16ga';
 export type ProcedureAttempts = '1' | '2' | '3' | '4' | '5+';
 export type ProcedureSide = 'Right' | 'Left';
-export type ProcedureLocation = 'Hand' | 'Wrist' | 'Forearm' | 'Antecubital' | 'Upper Arm';
+export type ProcedureLocation =
+  | 'Hand'
+  | 'Wrist'
+  | 'Forearm'
+  | 'Antecubital'
+  | 'Upper Arm'
+  | 'Chest'
+  | 'Port';
 
 export interface Procedure {
   task: ProcedureTask | null;

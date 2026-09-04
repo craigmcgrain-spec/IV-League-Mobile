@@ -1,4 +1,10 @@
-import type { Client, Procedure, ProcedureAttempts, ProcedureTask } from '../types';
+import type {
+  Client,
+  Procedure,
+  ProcedureAttempts,
+  ProcedureLocation,
+  ProcedureTask,
+} from '../types';
 
 export const EMPTY_CLIENT: Client = {
   name: '',
@@ -8,11 +14,20 @@ export const EMPTY_CLIENT: Client = {
   roomNumber: '',
 };
 
-export const TASKS = ['IV Insertion', 'Midline Insertion', 'PICC Insertion', 'Blood Draw', 'Dressing Change'] as const;
+export const TASKS = [
+  'IV Insertion',
+  'Midline Insertion',
+  'PICC Insertion',
+  'Blood Draw',
+  'Dressing Change',
+  'Port Access',
+] as const;
 export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
 export const ATTEMPT_OPTIONS = ['1', '2', '3', '4', '5+'] as const;
 export const SIDES = ['Right', 'Left'] as const;
-export const LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
+const STANDARD_LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
+const DRESSING_CHANGE_LOCATIONS = [...STANDARD_LOCATIONS, 'Port'] as const;
+const PORT_ACCESS_LOCATIONS = ['Chest'] as const;
 
 export function formatProcedureDateTime(value: Date): { date: string; time: string } {
   const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -81,6 +96,16 @@ export function needsProcedureDetails(task: ProcedureTask | null): boolean {
   return task !== null;
 }
 
+export function locationsForTask(task: ProcedureTask | null): readonly ProcedureLocation[] {
+  if (task === 'Port Access') {
+    return PORT_ACCESS_LOCATIONS;
+  }
+  if (task === 'Dressing Change') {
+    return DRESSING_CHANGE_LOCATIONS;
+  }
+  return STANDARD_LOCATIONS;
+}
+
 export function validateClient(client: Client): string[] {
   const fields: [keyof Client, string][] = [
     ['name', 'name'],
@@ -104,7 +129,9 @@ export function validateProcedure(procedure: Procedure): string[] {
     needsCatheterLength(procedure.task) && !procedure.catheterLength?.trim() ? 'catheter length' : '',
     needsAttempts(procedure.task) && !procedure.attempts ? 'number of attempts' : '',
     !procedure.side ? 'side' : '',
-    !procedure.location ? 'location' : '',
+    !procedure.location || !locationsForTask(procedure.task).includes(procedure.location)
+      ? 'location'
+      : '',
   ].filter(Boolean);
 }
 

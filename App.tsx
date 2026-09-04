@@ -52,12 +52,12 @@ import {
   EMPTY_CLIENT,
   ATTEMPT_OPTIONS,
   GAUGES,
-  LOCATIONS,
   SIDES,
   TASKS,
   defaultAttemptsForTask,
   formatDateOfBirthInput,
   formatProcedureDateTime,
+  locationsForTask,
   needsAttempts,
   needsCatheterLength,
   needsCatheterSize,
@@ -1086,13 +1086,18 @@ function ProcedureScreen({
   onContinue: () => void;
 }) {
   const chooseTask = (task: ProcedureTask) => {
+    const locations = locationsForTask(task);
     onChange({
       task,
       size: needsCatheterSize(task) ? procedure.size : null,
       catheterLength: needsCatheterLength(task) ? procedure.catheterLength : null,
       attempts: needsAttempts(task) ? (procedure.attempts ?? defaultAttemptsForTask(task)) : null,
       side: needsProcedureDetails(task) ? procedure.side : null,
-      location: needsProcedureDetails(task) ? procedure.location : null,
+      location: needsProcedureDetails(task)
+        && procedure.location
+        && locations.includes(procedure.location)
+        ? procedure.location
+        : null,
     });
   };
   const continueFlow = () => {
@@ -1122,7 +1127,12 @@ function ProcedureScreen({
             />
           ) : null}
           <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
-          <ChoiceGroup label="Location" options={LOCATIONS} value={procedure.location} onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })} />
+          <ChoiceGroup
+            label="Location"
+            options={locationsForTask(procedure.task)}
+            value={procedure.location}
+            onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })}
+          />
           {needsAttempts(procedure.task) ? (
             <ChoiceGroup
               label="Number of attempts"

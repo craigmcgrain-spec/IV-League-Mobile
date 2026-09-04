@@ -217,4 +217,31 @@ describe('PDF report', () => {
     expect(html).not.toContain('<th>Size</th>');
     expect(html).not.toContain('<th>Catheter length</th>');
   });
+
+  it('includes side and Chest location for Port Access', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Port Access',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Left',
+        location: 'Chest',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('Port Access');
+    expect(html).toContain('<th>Side</th><td>Left</td>');
+    expect(html).toContain('<th>Location</th><td>Chest</td>');
+    expect(html).not.toContain('<th>Number of attempts</th>');
+  });
 });

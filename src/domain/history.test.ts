@@ -127,4 +127,29 @@ describe('completion history', () => {
 
     expect(summary.details).toBe('Left Upper Arm · Attempts: 1');
   });
+
+  it('stores Port Access side and Chest location', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Port Access',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Right',
+        location: 'Chest',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.task).toBe('Port Access');
+    expect(summary.details).toBe('Right Chest');
+  });
 });
