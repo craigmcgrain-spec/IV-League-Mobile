@@ -47,7 +47,8 @@ describe('PDF report', () => {
     } as const;
     const html = buildReportHtml(record);
 
-    expect(html).toContain('IV LEAGUE');
+    expect(html).toContain('The IV League II');
+    expect(html).not.toContain('>IV LEAGUE<');
     expect(html).toContain('<th>Name and credentials</th><td>Demo Clinician, RN</td>');
     expect(html).not.toContain('<th>Professional credentials</th>');
     expect(html).toContain('SAFE-001');
@@ -127,6 +128,7 @@ describe('PDF report', () => {
     );
 
     expect(html).toContain('Demo Clinician, RN');
+    expect(html).toContain('The IV League II');
     expect(html).toContain('09/01/2026 through 09/01/2026');
     expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
     expect(html).toContain('IV Insertion - 20ga · Right Forearm · Attempts: 1');

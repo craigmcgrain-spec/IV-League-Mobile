@@ -55,7 +55,7 @@ th { color: #647480; font-weight: 500; width: 34%; }
 td { font-weight: 600; }
 .footer { color: #647480; font-size: 10px; margin-top: 36px; }
 </style></head><body>
-<div class="letterhead"><div class="brand">IV LEAGUE</div><div class="tagline">Clinical Procedure Services</div></div>
+<div class="letterhead"><div class="brand">The IV League II</div><div class="tagline">Clinical Procedure Services</div></div>
 <h1>Procedure Completion Record</h1>
 <h2>Completion</h2><table>
 ${row('Date and time', completedAt.toLocaleString())}
@@ -72,7 +72,7 @@ ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 <h2>Clinician</h2><table>
 ${row('Name and credentials', `${profile.name}, ${profile.credentials}`)}
 </table>
-<div class="footer">Generated after clinician review and confirmation in the IV League mobile application.</div>
+<div class="footer">Generated after clinician review and confirmation in The IV League II mobile application.</div>
 </body></html>`;
 }
 
@@ -155,6 +155,7 @@ export function buildCompletedProceduresHtml(
 @page { margin: 42px; }
 body { color: #1b2b38; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }
 .letterhead { border-bottom: 4px solid #008a8c; padding-bottom: 18px; margin-bottom: 28px; }
+.brand { color: #12283f; font-size: 28px; font-weight: 800; letter-spacing: 1px; }
 .name { color: #12283f; font-size: 24px; font-weight: 800; }
 .range { color: #647480; margin-top: 6px; }
 h1 { color: #12283f; font-size: 22px; margin: 0 0 22px; }
@@ -165,6 +166,7 @@ h1 { color: #12283f; font-size: 22px; margin: 0 0 22px; }
 .task { color: #008a8c; font-weight: 700; margin-top: 5px; }
 </style></head><body>
 <div class="letterhead">
+  <div class="brand">The IV League II</div>
   <div class="name">${escapeHtml(profile.name)}, ${escapeHtml(profile.credentials)}</div>
   <div class="range">${escapeHtml(displayStart)} through ${escapeHtml(displayEnd)}</div>
 </div>
