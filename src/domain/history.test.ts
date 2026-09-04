@@ -15,6 +15,7 @@ describe('completion history', () => {
         task: 'IV Insertion',
         size: '20ga',
         catheterLength: null,
+        attempts: '1',
         side: 'Right',
         location: 'Forearm',
       },
@@ -27,7 +28,7 @@ describe('completion history', () => {
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
       roomNumber: '204B',
-      details: '20ga · Right Forearm',
+      details: '20ga · Attempts: 1 · Right Forearm',
     });
     expect(summary).not.toHaveProperty('dateOfBirth');
     expect(summary).not.toHaveProperty('medicalRecordNumber');
@@ -43,7 +44,14 @@ describe('completion history', () => {
         facility: 'Demo Medical Center',
         roomNumber: '',
       },
-      procedure: { task: null, size: null, catheterLength: null, side: null, location: null },
+      procedure: {
+        task: null,
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: null,
+        location: null,
+      },
       completedAt: new Date(),
     })).toThrow('must have a task');
   });
@@ -62,13 +70,14 @@ describe('completion history', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
+        attempts: '2',
         side: 'Left',
         location: 'Antecubital',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Left Antecubital');
+    expect(summary.details).toBe('Attempts: 2 · Left Antecubital');
   });
 
   it('stores PICC catheter length with side and location', () => {
@@ -85,12 +94,37 @@ describe('completion history', () => {
         task: 'PICC Insertion',
         size: null,
         catheterLength: '45 cm',
+        attempts: '1',
         side: 'Right',
         location: 'Upper Arm',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Length: 45 cm · Right Upper Arm');
+    expect(summary.details).toBe('Length: 45 cm · Attempts: 1 · Right Upper Arm');
+  });
+
+  it('stores Midline attempts with side and location', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Midline Insertion',
+        size: null,
+        catheterLength: null,
+        attempts: '1',
+        side: 'Left',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe('Attempts: 1 · Left Upper Arm');
   });
 });

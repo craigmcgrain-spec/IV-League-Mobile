@@ -39,6 +39,7 @@ describe('PDF report', () => {
         task: 'IV Insertion',
         size: '20ga',
         catheterLength: null,
+        attempts: '1',
         side: 'Right',
         location: 'Forearm',
       },
@@ -51,6 +52,7 @@ describe('PDF report', () => {
     expect(html).toContain('SAFE-001');
     expect(html).toContain('IV Insertion');
     expect(html).toContain('20ga');
+    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
     expect(buildAttachmentFilename(record)).toBe('Demo Medical Center_Demo Patient_2026-09-01.pdf');
@@ -70,6 +72,7 @@ describe('PDF report', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
+        attempts: '1',
         side: null,
         location: null,
       },
@@ -138,6 +141,7 @@ describe('PDF report', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
+        attempts: '2',
         side: 'Left',
         location: 'Antecubital',
       },
@@ -146,6 +150,7 @@ describe('PDF report', () => {
 
     expect(html).toContain('<th>Side</th><td>Left</td>');
     expect(html).toContain('<th>Location</th><td>Antecubital</td>');
+    expect(html).toContain('<th>Number of attempts</th><td>2</td>');
     expect(html).not.toContain('<th>Size</th>');
   });
 
@@ -163,6 +168,7 @@ describe('PDF report', () => {
         task: 'PICC Insertion',
         size: null,
         catheterLength: '45 cm',
+        attempts: '1',
         side: 'Right',
         location: 'Upper Arm',
       },
@@ -170,6 +176,36 @@ describe('PDF report', () => {
     });
 
     expect(html).toContain('<th>Catheter length</th><td>45 cm</td>');
+    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
     expect(html).not.toContain('<th>Size</th>');
+  });
+
+  it('includes attempts, side, and location for a Midline insertion', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        dateOfBirth: '01/02/1980',
+        medicalRecordNumber: 'SAFE-001',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Midline Insertion',
+        size: null,
+        catheterLength: null,
+        attempts: '1',
+        side: 'Right',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('Midline Insertion');
+    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
+    expect(html).toContain('<th>Side</th><td>Right</td>');
+    expect(html).toContain('<th>Location</th><td>Upper Arm</td>');
+    expect(html).not.toContain('<th>Size</th>');
+    expect(html).not.toContain('<th>Catheter length</th>');
   });
 });

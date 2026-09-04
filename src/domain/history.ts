@@ -1,4 +1,9 @@
-import { needsCatheterLength, needsCatheterSize, needsProcedureDetails } from './workflow';
+import {
+  needsAttempts,
+  needsCatheterLength,
+  needsCatheterSize,
+  needsProcedureDetails,
+} from './workflow';
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
 export type NewCompletedProcedure = Omit<
@@ -14,6 +19,9 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     needsCatheterSize(record.procedure.task) ? record.procedure.size : null,
     needsCatheterLength(record.procedure.task) && record.procedure.catheterLength?.trim()
       ? `Length: ${record.procedure.catheterLength.trim()}`
+      : null,
+    needsAttempts(record.procedure.task) && record.procedure.attempts
+      ? `Attempts: ${record.procedure.attempts}`
       : null,
     needsProcedureDetails(record.procedure.task) && record.procedure.side && record.procedure.location
       ? `${record.procedure.side} ${record.procedure.location}`

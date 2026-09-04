@@ -3,6 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 import {
+  needsAttempts,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
@@ -34,6 +35,7 @@ export function buildReportHtml(record: CompletionRecord): string {
     needsCatheterLength(procedure.task)
       ? row('Catheter length', procedure.catheterLength ?? '')
       : '',
+    needsAttempts(procedure.task) ? row('Number of attempts', procedure.attempts ?? '') : '',
     needsProcedureDetails(procedure.task) ? row('Side', procedure.side ?? '') : '',
     needsProcedureDetails(procedure.task) ? row('Location', procedure.location ?? '') : '',
   ].join('');

@@ -1,8 +1,10 @@
 import {
+  defaultAttemptsForTask,
   formatDateOfBirthInput,
   formatProcedureDateTime,
   needsCatheterLength,
   needsCatheterSize,
+  needsAttempts,
   needsProcedureDetails,
   parseIntakeText,
   parseProcedureDateTime,
@@ -85,6 +87,7 @@ describe('workflow', () => {
       task: 'IV Insertion',
       size: '20ga',
       catheterLength: null,
+      attempts: '1',
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
@@ -97,6 +100,7 @@ describe('workflow', () => {
       task: 'Blood Draw',
       size: null,
       catheterLength: null,
+      attempts: '1',
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
@@ -104,6 +108,7 @@ describe('workflow', () => {
       task: 'Blood Draw',
       size: null,
       catheterLength: null,
+      attempts: '2',
       side: 'Left',
       location: 'Antecubital',
     })).toEqual([]);
@@ -116,6 +121,7 @@ describe('workflow', () => {
       task: 'PICC Insertion',
       size: null,
       catheterLength: '',
+      attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
     })).toEqual(['catheter length']);
@@ -123,6 +129,7 @@ describe('workflow', () => {
       task: 'PICC Insertion',
       size: null,
       catheterLength: '45 cm',
+      attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
     })).toEqual([]);
@@ -134,8 +141,32 @@ describe('workflow', () => {
       task: 'Dressing Change',
       size: null,
       catheterLength: null,
+      attempts: null,
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
+  });
+
+  it('supports Midline Insertion with default attempts, side, and location', () => {
+    expect(needsCatheterSize('Midline Insertion')).toBe(false);
+    expect(needsCatheterLength('Midline Insertion')).toBe(false);
+    expect(needsAttempts('Midline Insertion')).toBe(true);
+    expect(defaultAttemptsForTask('Midline Insertion')).toBe('1');
+    expect(validateProcedure({
+      task: 'Midline Insertion',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: null,
+      location: null,
+    })).toEqual(['number of attempts', 'side', 'location']);
+    expect(validateProcedure({
+      task: 'Midline Insertion',
+      size: null,
+      catheterLength: null,
+      attempts: '1',
+      side: 'Right',
+      location: 'Upper Arm',
+    })).toEqual([]);
   });
 });

@@ -11,8 +11,8 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Keyboard-aware scrolling keeps the active intake field visible and supports drag-to-dismiss
 - Editable encrypted facility directory with facility selection and inline facility creation during intake
 - Camera capture with on-device Google ML Kit text recognition, including labeled names and unique `Last, First` name lines; recognized values always return to editable fields for review
-- IV Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
-- IV gauge selection; PICC catheter-length entry; and side/location selection for every procedure
+- IV Insertion, Midline Insertion, PICC Insertion, Blood Draw, and Dressing Change workflows
+- IV gauge selection; PICC catheter-length entry; side/location selection for every procedure; and attempt counts for IV, Midline, PICC, and Blood Draw
 - Explicit final confirmation before generating a letterheaded PDF
 - Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename, provider-safe temporary file retention, and reliable Android URI grants
 - Authenticated, paged completed-procedure history with encrypted PDF resend and secure per-record deletion

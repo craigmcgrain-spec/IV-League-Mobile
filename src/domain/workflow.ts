@@ -1,4 +1,4 @@
-import type { Client, Procedure, ProcedureTask } from '../types';
+import type { Client, Procedure, ProcedureAttempts, ProcedureTask } from '../types';
 
 export const EMPTY_CLIENT: Client = {
   name: '',
@@ -8,8 +8,9 @@ export const EMPTY_CLIENT: Client = {
   roomNumber: '',
 };
 
-export const TASKS = ['IV Insertion', 'PICC Insertion', 'Blood Draw', 'Dressing Change'] as const;
+export const TASKS = ['IV Insertion', 'Midline Insertion', 'PICC Insertion', 'Blood Draw', 'Dressing Change'] as const;
 export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
+export const ATTEMPT_OPTIONS = ['1', '2', '3', '4', '5+'] as const;
 export const SIDES = ['Right', 'Left'] as const;
 export const LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
 
@@ -65,6 +66,17 @@ export function needsCatheterLength(task: ProcedureTask | null): boolean {
   return task === 'PICC Insertion';
 }
 
+export function needsAttempts(task: ProcedureTask | null): boolean {
+  return task === 'IV Insertion'
+    || task === 'Midline Insertion'
+    || task === 'PICC Insertion'
+    || task === 'Blood Draw';
+}
+
+export function defaultAttemptsForTask(task: ProcedureTask | null): ProcedureAttempts | null {
+  return needsAttempts(task) ? '1' : null;
+}
+
 export function needsProcedureDetails(task: ProcedureTask | null): boolean {
   return task !== null;
 }
@@ -90,6 +102,7 @@ export function validateProcedure(procedure: Procedure): string[] {
   return [
     needsCatheterSize(procedure.task) && !procedure.size ? 'size' : '',
     needsCatheterLength(procedure.task) && !procedure.catheterLength?.trim() ? 'catheter length' : '',
+    needsAttempts(procedure.task) && !procedure.attempts ? 'number of attempts' : '',
     !procedure.side ? 'side' : '',
     !procedure.location ? 'location' : '',
   ].filter(Boolean);

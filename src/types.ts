@@ -11,8 +11,14 @@ export interface Client {
   roomNumber: string;
 }
 
-export type ProcedureTask = 'IV Insertion' | 'PICC Insertion' | 'Blood Draw' | 'Dressing Change';
+export type ProcedureTask =
+  | 'IV Insertion'
+  | 'Midline Insertion'
+  | 'PICC Insertion'
+  | 'Blood Draw'
+  | 'Dressing Change';
 export type ProcedureSize = '24ga' | '22ga' | '20ga' | '18ga' | '16ga';
+export type ProcedureAttempts = '1' | '2' | '3' | '4' | '5+';
 export type ProcedureSide = 'Right' | 'Left';
 export type ProcedureLocation = 'Hand' | 'Wrist' | 'Forearm' | 'Antecubital' | 'Upper Arm';
 
@@ -20,6 +26,7 @@ export interface Procedure {
   task: ProcedureTask | null;
   size: ProcedureSize | null;
   catheterLength: string | null;
+  attempts: ProcedureAttempts | null;
   side: ProcedureSide | null;
   location: ProcedureLocation | null;
 }
