@@ -70,8 +70,7 @@ ${row('Room number', client.roomNumber)}
 </table>
 ${details ? `<h2>Procedure details</h2><table>${details}</table>` : ''}
 <h2>Clinician</h2><table>
-${row('Name', profile.name)}
-${row('Professional credentials', profile.credentials)}
+${row('Name and credentials', `${profile.name}, ${profile.credentials}`)}
 </table>
 <div class="footer">Generated after clinician review and confirmation in the IV League mobile application.</div>
 </body></html>`;

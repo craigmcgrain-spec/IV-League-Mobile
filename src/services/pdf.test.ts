@@ -48,7 +48,8 @@ describe('PDF report', () => {
     const html = buildReportHtml(record);
 
     expect(html).toContain('IV LEAGUE');
-    expect(html).toContain('Demo Clinician');
+    expect(html).toContain('<th>Name and credentials</th><td>Demo Clinician, RN</td>');
+    expect(html).not.toContain('<th>Professional credentials</th>');
     expect(html).toContain('SAFE-001');
     expect(html).toContain('IV Insertion');
     expect(html).toContain('20ga');
