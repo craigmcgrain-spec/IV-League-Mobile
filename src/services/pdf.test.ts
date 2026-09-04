@@ -57,6 +57,10 @@ describe('PDF report', () => {
     expect(html).toContain('Forearm');
     expect(html.indexOf('<th>Location</th>'))
       .toBeLessThan(html.indexOf('<th>Number of attempts</th>'));
+    expect(html.indexOf('<h2>Procedure details</h2>'))
+      .toBeLessThan(html.indexOf('<h2>Clinician</h2>'));
+    expect(html.indexOf('<h2>Clinician</h2>'))
+      .toBeLessThan(html.indexOf('<div class="footer">'));
     expect(buildAttachmentFilename(record)).toBe('Demo Medical Center_Demo Patient_2026-09-01.pdf');
   });
 
