@@ -28,7 +28,7 @@ describe('completion history', () => {
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
       roomNumber: '204B',
-      details: '20ga · Attempts: 1 · Right Forearm',
+      details: '20ga · Right Forearm · Attempts: 1',
     });
     expect(summary).not.toHaveProperty('dateOfBirth');
     expect(summary).not.toHaveProperty('medicalRecordNumber');
@@ -77,7 +77,7 @@ describe('completion history', () => {
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Attempts: 2 · Left Antecubital');
+    expect(summary.details).toBe('Left Antecubital · Attempts: 2');
   });
 
   it('stores PICC catheter length with side and location', () => {
@@ -101,7 +101,7 @@ describe('completion history', () => {
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Length: 45 cm · Attempts: 1 · Right Upper Arm');
+    expect(summary.details).toBe('Length: 45 cm · Right Upper Arm · Attempts: 1');
   });
 
   it('stores Midline attempts with side and location', () => {
@@ -125,6 +125,6 @@ describe('completion history', () => {
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Attempts: 1 · Left Upper Arm');
+    expect(summary.details).toBe('Left Upper Arm · Attempts: 1');
   });
 });

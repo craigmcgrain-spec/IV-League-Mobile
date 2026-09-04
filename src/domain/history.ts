@@ -20,11 +20,11 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     needsCatheterLength(record.procedure.task) && record.procedure.catheterLength?.trim()
       ? `Length: ${record.procedure.catheterLength.trim()}`
       : null,
-    needsAttempts(record.procedure.task) && record.procedure.attempts
-      ? `Attempts: ${record.procedure.attempts}`
-      : null,
     needsProcedureDetails(record.procedure.task) && record.procedure.side && record.procedure.location
       ? `${record.procedure.side} ${record.procedure.location}`
+      : null,
+    needsAttempts(record.procedure.task) && record.procedure.attempts
+      ? `Attempts: ${record.procedure.attempts}`
       : null,
   ].filter(Boolean).join(' · ');
 

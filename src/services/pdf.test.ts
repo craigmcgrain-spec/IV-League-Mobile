@@ -55,6 +55,8 @@ describe('PDF report', () => {
     expect(html).toContain('<th>Number of attempts</th><td>1</td>');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
+    expect(html.indexOf('<th>Location</th>'))
+      .toBeLessThan(html.indexOf('<th>Number of attempts</th>'));
     expect(buildAttachmentFilename(record)).toBe('Demo Medical Center_Demo Patient_2026-09-01.pdf');
   });
 
@@ -107,7 +109,7 @@ describe('PDF report', () => {
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
       roomNumber: '204B',
-      details: '20ga · Right Forearm',
+      details: '20ga · Right Forearm · Attempts: 1',
       hasPdf: true,
       pdfFilename: 'demo.pdf',
       includedInBatch: false,
@@ -122,7 +124,7 @@ describe('PDF report', () => {
     expect(html).toContain('Demo Clinician, RN');
     expect(html).toContain('09/01/2026 through 09/01/2026');
     expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
-    expect(html).toContain('IV Insertion - 20ga · Right Forearm');
+    expect(html).toContain('IV Insertion - 20ga · Right Forearm · Attempts: 1');
     expect(buildCompletedProceduresFilename([...records]))
       .toBe('Completed Procedures_2026-09-01_to_2026-09-01.pdf');
   });

@@ -1121,6 +1121,8 @@ function ProcedureScreen({
               placeholder="e.g., 45 cm"
             />
           ) : null}
+          <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
+          <ChoiceGroup label="Location" options={LOCATIONS} value={procedure.location} onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })} />
           {needsAttempts(procedure.task) ? (
             <ChoiceGroup
               label="Number of attempts"
@@ -1130,8 +1132,6 @@ function ProcedureScreen({
               compact
             />
           ) : null}
-          <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
-          <ChoiceGroup label="Location" options={LOCATIONS} value={procedure.location} onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })} />
         </>
       ) : null}
       <PrimaryButton label="Review completion record" onPress={continueFlow} />
@@ -1211,11 +1211,11 @@ function ReviewScreen({
             ...(needsCatheterLength(procedure.task)
               ? [['Catheter length', procedure.catheterLength ?? '']] as [string, string][]
               : []),
+            ['Side', procedure.side ?? ''],
+            ['Location', procedure.location ?? ''],
             ...(needsAttempts(procedure.task)
               ? [['Number of attempts', procedure.attempts ?? '']] as [string, string][]
               : []),
-            ['Side', procedure.side ?? ''],
-            ['Location', procedure.location ?? ''],
           ] as [string, string][]
           : []),
       ]} />
