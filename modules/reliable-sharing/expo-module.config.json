@@ -1,5 +1,8 @@
 {
-  "platforms": ["android"],
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ReliableSharingModule"]
+  },
   "android": {
     "modules": ["com.ivleague.reliablesharing.ReliableSharingModule"]
   }

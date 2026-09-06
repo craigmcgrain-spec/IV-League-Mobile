@@ -4,12 +4,17 @@ import { Platform } from 'react-native';
 
 type ReliableSharingModule = {
   sharePdfAsync(uri: string, dialogTitle: string): Promise<void>;
+  sharePdfAsImageAsync(uri: string, dialogTitle: string): Promise<string>;
   cleanupSharedPdfsAsync(maxAgeMs: number): Promise<void>;
   deleteSharedPdfsAsync(filename: string): Promise<void>;
 };
 
 export type SharePdfResult =
   | { ok: true }
+  | { ok: false; reason: 'invalid-uri' | 'unsupported' | 'error'; message: string };
+
+export type SharePdfImageResult =
+  | { ok: true; imageUri: string }
   | { ok: false; reason: 'invalid-uri' | 'unsupported' | 'error'; message: string };
 
 export async function sharePdf(uri: string, dialogTitle: string): Promise<SharePdfResult> {
@@ -44,6 +49,42 @@ export async function sharePdf(uri: string, dialogTitle: string): Promise<ShareP
       ok: false,
       reason: 'error',
       message: error instanceof Error ? error.message : 'The PDF could not be shared.',
+    };
+  }
+}
+
+export async function sharePdfAsImage(
+  uri: string,
+  dialogTitle: string,
+): Promise<SharePdfImageResult> {
+  if (!uri.startsWith('file://')) {
+    return {
+      ok: false,
+      reason: 'invalid-uri',
+      message: 'PDF attachments must use a local file URI.',
+    };
+  }
+
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
+    return {
+      ok: false,
+      reason: 'unsupported',
+      message: 'Text-image sharing is available only on iOS and Android.',
+    };
+  }
+
+  try {
+    const nativeSharing = requireNativeModule<ReliableSharingModule>('IVLeagueReliableSharing');
+    const imageUri = await nativeSharing.sharePdfAsImageAsync(uri, dialogTitle);
+    if (!imageUri.startsWith('file://')) {
+      throw new Error('The text-message image could not be created.');
+    }
+    return { ok: true, imageUri };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'error',
+      message: error instanceof Error ? error.message : 'The image could not be shared.',
     };
   }
 }

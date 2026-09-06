@@ -1,4 +1,4 @@
-import { sharePdf } from './reliableSharing';
+import { sharePdf, sharePdfAsImage } from './reliableSharing';
 
 jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(),
@@ -7,6 +7,18 @@ jest.mock('expo-sharing', () => ({
 describe('reliable PDF sharing', () => {
   it('rejects non-file attachment URIs', async () => {
     await expect(sharePdf('content://reports/test.pdf', 'Share report')).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-uri',
+      message: 'PDF attachments must use a local file URI.',
+    });
+  });
+});
+
+describe('text-image sharing', () => {
+  it('rejects non-file PDF URIs before invoking native code', async () => {
+    await expect(
+      sharePdfAsImage('content://reports/test.pdf', 'Send image'),
+    ).resolves.toEqual({
       ok: false,
       reason: 'invalid-uri',
       message: 'PDF attachments must use a local file URI.',

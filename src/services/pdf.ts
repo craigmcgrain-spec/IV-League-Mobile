@@ -12,6 +12,7 @@ import {
   cleanupSharedPdfExports,
   deleteSharedPdfExports,
   sharePdf,
+  sharePdfAsImage,
 } from '../native/reliableSharing';
 import type { CompletedProcedure, CompletionRecord, UserProfile } from '../types';
 
@@ -260,6 +261,38 @@ export async function generateAndShareCompletedProcedures(
   profile: UserProfile,
   records: CompletedProcedure[],
 ): Promise<void> {
+  const uri = await createCompletedProceduresPdf(profile, records);
+  pendingPdfUri = uri;
+  await shareReportUri(uri);
+}
+
+export async function generateAndShareCompletedProceduresImage(
+  profile: UserProfile,
+  records: CompletedProcedure[],
+): Promise<void> {
+  const uri = await createCompletedProceduresPdf(profile, records);
+  pendingPdfUri = uri;
+  try {
+    const result = await sharePdfAsImage(
+      uri,
+      'Send Completed Procedures as a text image',
+    );
+    if (!result.ok) {
+      throw new Error(result.message);
+    }
+    scheduleReportCleanup(uri);
+    scheduleReportCleanup(result.imageUri);
+  } catch (error) {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    pendingPdfUri = null;
+    throw error;
+  }
+}
+
+async function createCompletedProceduresPdf(
+  profile: UserProfile,
+  records: CompletedProcedure[],
+): Promise<string> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is unavailable');
   }
@@ -278,8 +311,7 @@ export async function generateAndShareCompletedProcedures(
     await FileSystem.deleteAsync(printed.uri, { idempotent: true });
     throw error;
   }
-  pendingPdfUri = uri;
-  await shareReportUri(uri);
+  return uri;
 }
 
 async function shareReportUri(uri: string): Promise<void> {

@@ -31,6 +31,7 @@ import {
   cleanupStaleSharedReports,
   deleteCachedReport,
   generateAndShareCompletedProcedures,
+  generateAndShareCompletedProceduresImage,
   generateReport,
   shareStoredReport,
 } from './src/services/pdf';
@@ -662,6 +663,36 @@ function HomeScreen({
     }
   };
 
+  const sendCompletedProceduresAsImage = async () => {
+    if (selectedRecords.length === 0) {
+      Alert.alert('Select procedures', 'Choose at least one completed procedure.');
+      return;
+    }
+    setBatchBusy(true);
+    const ids = selectedRecords.map((record) => record.id);
+    try {
+      await generateAndShareCompletedProceduresImage(profile, selectedRecords);
+    } catch {
+      Alert.alert(
+        'Image not created',
+        'The selected procedures could not be prepared as a text-message image.',
+      );
+      setBatchBusy(false);
+      return;
+    }
+    try {
+      await markProceduresIncludedInBatch(ids);
+      onRecordsIncluded(ids);
+    } catch {
+      Alert.alert(
+        'Image shared; archive unavailable',
+        'The procedures could not be marked as included. Send the image again before archiving them.',
+      );
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
   const archiveSelected = () => {
     const eligible = selectedRecords.filter((record) => record.includedInBatch);
     if (eligible.length !== selectedRecords.length || eligible.length === 0) {
@@ -806,6 +837,11 @@ function HomeScreen({
             <PrimaryButton
               label={`Create and send Completed Procedures (${selectedRecords.length})`}
               onPress={createCompletedProceduresDocument}
+              busy={batchBusy}
+            />
+            <SecondaryButton
+              label="Send as text image"
+              onPress={sendCompletedProceduresAsImage}
               busy={batchBusy}
             />
             <SecondaryButton label="Archive selected" onPress={archiveSelected} />
