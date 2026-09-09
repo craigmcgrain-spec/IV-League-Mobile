@@ -138,4 +138,54 @@ describe('completion history', () => {
     expect(summary.task).toBe('Port Access');
     expect(summary.details).toBe('Right Chest');
   });
+
+  it('stores troubleshooting device, site, and free-text notes', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Troubleshoot',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Left',
+        location: 'Upper Arm',
+        troubleshootDevice: 'PICC',
+        troubleshootingNotes: 'Difficult flush; dressing and tubing inspected.',
+        capChanged: null,
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe(
+      'Device: PICC · Left Upper Arm · Notes: Difficult flush; dressing and tubing inspected.',
+    );
+  });
+
+  it('stores the dressing-change cap answer', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Dressing Change',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Right',
+        location: 'Port',
+        capChanged: 'Yes',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe('Right Port · Cap change: Yes');
+  });
 });

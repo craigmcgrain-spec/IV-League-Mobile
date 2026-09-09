@@ -4,9 +4,11 @@ import * as Sharing from 'expo-sharing';
 
 import {
   needsAttempts,
+  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
+  needsTroubleshootDetails,
 } from '../domain/workflow';
 import {
   cleanupSharedPdfExports,
@@ -36,8 +38,15 @@ export function buildReportHtml(record: CompletionRecord): string {
     needsCatheterLength(procedure.task)
       ? row('Catheter length', procedure.catheterLength ?? '')
       : '',
+    needsTroubleshootDetails(procedure.task)
+      ? row('Device type', procedure.troubleshootDevice ?? '')
+      : '',
     needsProcedureDetails(procedure.task) ? row('Side', procedure.side ?? '') : '',
     needsProcedureDetails(procedure.task) ? row('Location', procedure.location ?? '') : '',
+    needsCapChange(procedure.task) ? row('Cap change', procedure.capChanged ?? '') : '',
+    needsTroubleshootDetails(procedure.task)
+      ? row('Troubleshooting notes', procedure.troubleshootingNotes ?? '')
+      : '',
     needsAttempts(procedure.task) ? row('Number of attempts', procedure.attempts ?? '') : '',
   ].join('');
 

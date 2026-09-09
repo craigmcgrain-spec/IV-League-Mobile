@@ -15,10 +15,13 @@ export type ProcedureTask =
   | 'PICC Insertion'
   | 'Blood Draw'
   | 'Dressing Change'
-  | 'Port Access';
+  | 'Port Access'
+  | 'Troubleshoot';
 export type ProcedureSize = '24ga' | '22ga' | '20ga' | '18ga' | '16ga';
 export type ProcedureAttempts = '1' | '2' | '3' | '4' | '5+';
 export type ProcedureSide = 'Right' | 'Left';
+export type TroubleshootDevice = 'IV' | 'Midline' | 'PICC';
+export type YesNo = 'Yes' | 'No';
 export type ProcedureLocation =
   | 'Hand'
   | 'Wrist'
@@ -35,6 +38,9 @@ export interface Procedure {
   attempts: ProcedureAttempts | null;
   side: ProcedureSide | null;
   location: ProcedureLocation | null;
+  troubleshootDevice?: TroubleshootDevice | null;
+  troubleshootingNotes?: string | null;
+  capChanged?: YesNo | null;
 }
 
 export interface CompletionRecord {

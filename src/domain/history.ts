@@ -1,8 +1,10 @@
 import {
   needsAttempts,
+  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
+  needsTroubleshootDetails,
 } from './workflow';
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
@@ -20,8 +22,17 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     needsCatheterLength(record.procedure.task) && record.procedure.catheterLength?.trim()
       ? `Length: ${record.procedure.catheterLength.trim()}`
       : null,
+    needsTroubleshootDetails(record.procedure.task) && record.procedure.troubleshootDevice
+      ? `Device: ${record.procedure.troubleshootDevice}`
+      : null,
     needsProcedureDetails(record.procedure.task) && record.procedure.side && record.procedure.location
       ? `${record.procedure.side} ${record.procedure.location}`
+      : null,
+    needsCapChange(record.procedure.task) && record.procedure.capChanged
+      ? `Cap change: ${record.procedure.capChanged}`
+      : null,
+    needsTroubleshootDetails(record.procedure.task) && record.procedure.troubleshootingNotes?.trim()
+      ? `Notes: ${record.procedure.troubleshootingNotes.trim()}`
       : null,
     needsAttempts(record.procedure.task) && record.procedure.attempts
       ? `Attempts: ${record.procedure.attempts}`

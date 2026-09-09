@@ -119,7 +119,7 @@ describe('workflow', () => {
     })).toEqual([]);
   });
 
-  it('requires side and location for dressing changes', () => {
+  it('requires side, location, and a cap-change answer for dressing changes', () => {
     expect(needsProcedureDetails('Dressing Change')).toBe(true);
     expect(validateProcedure({
       task: 'Dressing Change',
@@ -128,7 +128,8 @@ describe('workflow', () => {
       attempts: null,
       side: null,
       location: null,
-    })).toEqual(['side', 'location']);
+      capChanged: null,
+    })).toEqual(['cap change', 'side', 'location']);
   });
 
   it('supports Midline Insertion with default attempts, side, and location', () => {
@@ -181,6 +182,39 @@ describe('workflow', () => {
       attempts: null,
       side: 'Left',
       location: 'Port',
+      capChanged: 'No',
+    })).toEqual([]);
+  });
+
+  it('requires device type, notes, side, and location for troubleshooting', () => {
+    expect(locationsForTask('Troubleshoot')).toEqual([
+      'Hand',
+      'Wrist',
+      'Forearm',
+      'Antecubital',
+      'Upper Arm',
+    ]);
+    expect(validateProcedure({
+      task: 'Troubleshoot',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: null,
+      location: null,
+      troubleshootDevice: null,
+      troubleshootingNotes: ' ',
+      capChanged: null,
+    })).toEqual(['device type', 'troubleshooting notes', 'side', 'location']);
+    expect(validateProcedure({
+      task: 'Troubleshoot',
+      size: null,
+      catheterLength: null,
+      attempts: null,
+      side: 'Right',
+      location: 'Forearm',
+      troubleshootDevice: 'IV',
+      troubleshootingNotes: 'No blood return; repositioned and flushed.',
+      capChanged: null,
     })).toEqual([]);
   });
 });

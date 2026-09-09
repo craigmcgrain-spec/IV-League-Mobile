@@ -231,4 +231,57 @@ describe('PDF report', () => {
     expect(html).toContain('<th>Location</th><td>Chest</td>');
     expect(html).not.toContain('<th>Number of attempts</th>');
   });
+
+  it('includes troubleshooting device, site, and free-text notes', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Troubleshoot',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Right',
+        location: 'Forearm',
+        troubleshootDevice: 'IV',
+        troubleshootingNotes: 'No blood return; repositioned and flushed.',
+        capChanged: null,
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Device type</th><td>IV</td>');
+    expect(html).toContain('<th>Side</th><td>Right</td>');
+    expect(html).toContain('<th>Location</th><td>Forearm</td>');
+    expect(html).toContain(
+      '<th>Troubleshooting notes</th><td>No blood return; repositioned and flushed.</td>',
+    );
+  });
+
+  it('includes the Dressing Change cap answer', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Dressing Change',
+        size: null,
+        catheterLength: null,
+        attempts: null,
+        side: 'Left',
+        location: 'Port',
+        capChanged: 'No',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Cap change</th><td>No</td>');
+  });
 });

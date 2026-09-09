@@ -55,13 +55,17 @@ import {
   GAUGES,
   SIDES,
   TASKS,
+  TROUBLESHOOT_DEVICES,
+  YES_NO_OPTIONS,
   defaultAttemptsForTask,
   formatProcedureDateTime,
   locationsForTask,
   needsAttempts,
+  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
+  needsTroubleshootDetails,
   parseProcedureDateTime,
   parseIntakeText,
   validateClient,
@@ -77,7 +81,9 @@ import type {
   ProcedureSide,
   ProcedureSize,
   ProcedureTask,
+  TroubleshootDevice,
   UserProfile,
+  YesNo,
 } from './src/types';
 
 type Route = 'home' | 'facilities' | 'intake' | 'camera' | 'procedure' | 'review';
@@ -98,6 +104,9 @@ export default function App() {
     attempts: null,
     side: null,
     location: null,
+    troubleshootDevice: null,
+    troubleshootingNotes: null,
+    capChanged: null,
   });
   const [procedureDateTime, setProcedureDateTime] = useState(() => formatProcedureDateTime(new Date()));
   const [completedAt, setCompletedAt] = useState(() => new Date());
@@ -186,6 +195,9 @@ export default function App() {
       attempts: null,
       side: null,
       location: null,
+      troubleshootDevice: null,
+      troubleshootingNotes: null,
+      capChanged: null,
     });
     const now = new Date();
     setProcedureDateTime(formatProcedureDateTime(now));
@@ -1124,6 +1136,9 @@ function ProcedureScreen({
         && locations.includes(procedure.location)
         ? procedure.location
         : null,
+      troubleshootDevice: needsTroubleshootDetails(task) ? procedure.troubleshootDevice : null,
+      troubleshootingNotes: needsTroubleshootDetails(task) ? procedure.troubleshootingNotes : null,
+      capChanged: needsCapChange(task) ? procedure.capChanged : null,
     });
   };
   const continueFlow = () => {
@@ -1152,6 +1167,18 @@ function ProcedureScreen({
               placeholder="e.g., 45 cm"
             />
           ) : null}
+          {needsTroubleshootDetails(procedure.task) ? (
+            <ChoiceGroup
+              label="Device type"
+              options={TROUBLESHOOT_DEVICES}
+              value={procedure.troubleshootDevice ?? null}
+              onSelect={(troubleshootDevice) => onChange({
+                ...procedure,
+                troubleshootDevice: troubleshootDevice as TroubleshootDevice,
+              })}
+              compact
+            />
+          ) : null}
           <ChoiceGroup label="Side" options={SIDES} value={procedure.side} onSelect={(side) => onChange({ ...procedure, side: side as ProcedureSide })} compact />
           <ChoiceGroup
             label="Location"
@@ -1166,6 +1193,30 @@ function ProcedureScreen({
               value={procedure.attempts}
               onSelect={(attempts) => onChange({ ...procedure, attempts: attempts as ProcedureAttempts })}
               compact
+            />
+          ) : null}
+          {needsCapChange(procedure.task) ? (
+            <ChoiceGroup
+              label="Cap change"
+              options={YES_NO_OPTIONS}
+              value={procedure.capChanged ?? null}
+              onSelect={(capChanged) => onChange({ ...procedure, capChanged: capChanged as YesNo })}
+              compact
+            />
+          ) : null}
+          {needsTroubleshootDetails(procedure.task) ? (
+            <Field
+              label="Troubleshooting notes"
+              value={procedure.troubleshootingNotes ?? ''}
+              onChangeText={(troubleshootingNotes) => onChange({
+                ...procedure,
+                troubleshootingNotes,
+              })}
+              placeholder="Describe the issue and actions taken"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={[styles.input, styles.multilineInput]}
             />
           ) : null}
         </>
@@ -1245,8 +1296,17 @@ function ReviewScreen({
             ...(needsCatheterLength(procedure.task)
               ? [['Catheter length', procedure.catheterLength ?? '']] as [string, string][]
               : []),
+            ...(needsTroubleshootDetails(procedure.task)
+              ? [['Device type', procedure.troubleshootDevice ?? '']] as [string, string][]
+              : []),
             ['Side', procedure.side ?? ''],
             ['Location', procedure.location ?? ''],
+            ...(needsCapChange(procedure.task)
+              ? [['Cap change', procedure.capChanged ?? '']] as [string, string][]
+              : []),
+            ...(needsTroubleshootDetails(procedure.task)
+              ? [['Troubleshooting notes', procedure.troubleshootingNotes ?? '']] as [string, string][]
+              : []),
             ...(needsAttempts(procedure.task)
               ? [['Number of attempts', procedure.attempts ?? '']] as [string, string][]
               : []),
@@ -1402,6 +1462,7 @@ const styles = StyleSheet.create({
   field: { gap: 7 },
   fieldLabel: { color: COLORS.text, fontWeight: '700', fontSize: 14 },
   input: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 14, fontSize: 16, color: COLORS.text },
+  multilineInput: { minHeight: 112 },
   primaryButton: { minHeight: 52, borderRadius: 13, backgroundColor: COLORS.teal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 4 },
   primaryButtonText: { color: 'white', fontSize: 16, fontWeight: '800' },
   secondaryButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center' },
