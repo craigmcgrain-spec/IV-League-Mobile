@@ -17,6 +17,7 @@ Production-oriented MVP for creating reviewed IV League procedure completion rec
 - Native PDF share sheet for the user's preferred email or sharing service, with a `facility_client name_date.pdf` attachment filename, provider-safe temporary file retention, and reliable Android URI grants
 - Authenticated, paged completed-procedure history with encrypted PDF resend and secure per-record deletion
 - Selectable combined Completed Procedures PDFs, text-message image sharing, and an archived-procedure view with restore-to-active support
+- Spreadsheet-safe CSV export for multi-selected completed procedures using the native share sheet
 - Native screenshot/screen-recording protection and automatic session lock whenever the app leaves the foreground
 
 Patient data is never logged. Only the encrypted completion history and its encrypted PDF attachment persist after the active workflow is cleared. Use demo-safe data during development.
@@ -59,7 +60,7 @@ The camera permission is requested only when the scan screen is opened. Biometri
 4. Review and edit all intake fields.
 5. Choose a procedure and, for IV/PICC, choose one size, side, and location.
 6. Review the completion record, confirm accuracy, and save its PDF to Completed procedures.
-7. Send an individual stored PDF, or select multiple procedures to share a combined Completed Procedures document as a PDF or a temporary image attachment through the native share sheet.
+7. Send an individual stored PDF, or select multiple procedures to share a combined Completed Procedures document as a PDF, temporary image attachment, or CSV data-entry file through the native share sheet.
 8. Archive procedures after they have been added to a combined document.
 
 ## Security notes
@@ -74,3 +75,4 @@ The camera permission is requested only when the scan screen is opened. Biometri
 - PDF filenames contain the facility and client name as requested. Treat the attachment name as sensitive client information and use only approved email recipients and services.
 - Sensitive screens are protected with the platform secure-screen facility, and leaving the foreground requires authentication again.
 - Recipients selected in the system share sheet control any copies created outside the app.
+- CSV exports contain completion time, task, clinician, client name, facility, room, and procedure summary; spreadsheet formula prefixes are neutralized before sharing.

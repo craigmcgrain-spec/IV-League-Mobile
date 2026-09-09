@@ -35,6 +35,7 @@ import {
   generateReport,
   shareStoredReport,
 } from './src/services/pdf';
+import { generateAndShareCompletedProceduresCsv } from './src/services/csv';
 import {
   addFacility,
   archiveCompletedProcedures,
@@ -704,6 +705,24 @@ function HomeScreen({
     }
   };
 
+  const sendCompletedProceduresAsCsv = async () => {
+    if (selectedRecords.length === 0) {
+      Alert.alert('Select procedures', 'Choose at least one completed procedure.');
+      return;
+    }
+    setBatchBusy(true);
+    try {
+      await generateAndShareCompletedProceduresCsv(profile, selectedRecords);
+    } catch {
+      Alert.alert(
+        'CSV not created',
+        'The selected procedure data could not be prepared or shared.',
+      );
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
   const archiveSelected = () => {
     const eligible = selectedRecords.filter((record) => record.includedInBatch);
     if (eligible.length !== selectedRecords.length || eligible.length === 0) {
@@ -765,7 +784,7 @@ function HomeScreen({
       ) : null}
       <View style={styles.historySection}>
         <Text style={styles.historyHeading}>Completed procedures</Text>
-        <Text style={styles.privacyNote}>Encrypted on this device. Select active procedures to create a combined Completed Procedures PDF, then archive them when finished.</Text>
+        <Text style={styles.privacyNote}>Encrypted on this device. Select active procedures to create a combined PDF or CSV data-entry file, then archive them when finished.</Text>
         <View style={styles.segmentedControl}>
           <Pressable
             accessibilityRole="tab"
@@ -853,6 +872,11 @@ function HomeScreen({
             <SecondaryButton
               label="Send as text image"
               onPress={sendCompletedProceduresAsImage}
+              busy={batchBusy}
+            />
+            <SecondaryButton
+              label="Send selected as CSV"
+              onPress={sendCompletedProceduresAsCsv}
               busy={batchBusy}
             />
             <SecondaryButton label="Archive selected" onPress={archiveSelected} />
