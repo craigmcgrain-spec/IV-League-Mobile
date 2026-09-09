@@ -6,8 +6,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -30,8 +28,6 @@ describe('completion history', () => {
       roomNumber: '204B',
       details: '20ga · Right Forearm · Attempts: 1',
     });
-    expect(summary).not.toHaveProperty('dateOfBirth');
-    expect(summary).not.toHaveProperty('medicalRecordNumber');
   });
 
   it('rejects records without a selected task', () => {
@@ -39,8 +35,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '',
-        medicalRecordNumber: '',
         facility: 'Demo Medical Center',
         roomNumber: '',
       },
@@ -61,8 +55,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -85,8 +77,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -109,8 +99,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -133,8 +121,6 @@ describe('completion history', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },

@@ -30,8 +30,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -51,7 +49,6 @@ describe('PDF report', () => {
     expect(html).not.toContain('>IV LEAGUE<');
     expect(html).toContain('<th>Name and credentials</th><td>Demo Clinician, RN</td>');
     expect(html).not.toContain('<th>Professional credentials</th>');
-    expect(html).toContain('SAFE-001');
     expect(html).toContain('IV Insertion');
     expect(html).toContain('20ga');
     expect(html).toContain('<th>Number of attempts</th><td>1</td>');
@@ -71,8 +68,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: '../Demo/Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo:Facility?',
         roomNumber: '204B',
       },
@@ -141,8 +136,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -168,8 +161,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -194,8 +185,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
@@ -223,8 +212,6 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },

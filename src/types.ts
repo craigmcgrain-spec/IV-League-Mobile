@@ -5,8 +5,6 @@ export interface UserProfile {
 
 export interface Client {
   name: string;
-  dateOfBirth: string;
-  medicalRecordNumber: string;
   facility: string;
   roomNumber: string;
 }

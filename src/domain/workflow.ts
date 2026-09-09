@@ -8,8 +8,6 @@ import type {
 
 export const EMPTY_CLIENT: Client = {
   name: '',
-  dateOfBirth: '',
-  medicalRecordNumber: '',
   facility: '',
   roomNumber: '',
 };
@@ -109,8 +107,6 @@ export function locationsForTask(task: ProcedureTask | null): readonly Procedure
 export function validateClient(client: Client): string[] {
   const fields: [keyof Client, string][] = [
     ['name', 'name'],
-    ['dateOfBirth', 'date of birth'],
-    ['medicalRecordNumber', 'medical record number'],
     ['facility', 'facility'],
     ['roomNumber', 'room number'],
   ];
@@ -135,20 +131,7 @@ export function validateProcedure(procedure: Procedure): string[] {
   ].filter(Boolean);
 }
 
-export function formatDateOfBirthInput(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) {
-    return digits;
-  }
-  if (digits.length <= 4) {
-    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  }
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
 const LABELS: [keyof Client, RegExp][] = [
-  ['dateOfBirth', /^(?:date\s*of\s*birth|dob)\s*[:#-]?\s*(.+)$/i],
-  ['medicalRecordNumber', /^(?:medical\s*record\s*(?:number|no\.?)?|mrn)\s*[:#-]?\s*(.+)$/i],
   ['facility', /^facility\s*[:#-]?\s*(.+)$/i],
   ['roomNumber', /^room(?:\s*(?:number|no\.?))?\s*[:#-]?\s*(.+)$/i],
   ['name', /^(?:(?:client|patient)(?:\s*name)?|name)\s*[:#-]?\s*(.+)$/i],
@@ -158,13 +141,8 @@ const LAST_FIRST_NAME_PATTERN =
   /^([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*),\s*([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*)$/u;
 const NON_NAME_WORDS = new Set([
   'date',
-  'dob',
-  'birth',
   'facility',
   'room',
-  'medical',
-  'record',
-  'mrn',
   'patient',
   'client',
 ]);
@@ -195,8 +173,7 @@ export function parseIntakeText(text: string): Partial<Client> {
     for (const [field, pattern] of LABELS) {
       const match = line.match(pattern);
       if (match?.[1]) {
-        const value = match[1].trim();
-        parsed[field] = field === 'dateOfBirth' ? formatDateOfBirthInput(value) : value;
+        parsed[field] = match[1].trim();
         break;
       }
     }

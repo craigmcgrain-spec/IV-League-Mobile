@@ -64,8 +64,6 @@ ${row('Task completed', procedure.task ?? '')}
 </table>
 <h2>Client</h2><table>
 ${row('Name', client.name)}
-${row('Date of birth', client.dateOfBirth)}
-${row('Medical record number', client.medicalRecordNumber)}
 ${row('Facility', client.facility)}
 ${row('Room number', client.roomNumber)}
 </table>

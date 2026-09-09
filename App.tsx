@@ -56,7 +56,6 @@ import {
   SIDES,
   TASKS,
   defaultAttemptsForTask,
-  formatDateOfBirthInput,
   formatProcedureDateTime,
   locationsForTask,
   needsAttempts,
@@ -945,15 +944,6 @@ function IntakeScreen({
         autoCapitalize="characters"
       />
       <Field label="Name" value={client.name} onChangeText={(value) => update('name', value)} autoCapitalize="words" />
-      <Field
-        label="Date of birth"
-        value={client.dateOfBirth}
-        onChangeText={(value) => update('dateOfBirth', formatDateOfBirthInput(value))}
-        placeholder="MM/DD/YYYY"
-        keyboardType="number-pad"
-        maxLength={10}
-      />
-      <Field label="Medical record number" value={client.medicalRecordNumber} onChangeText={(value) => update('medicalRecordNumber', value)} autoCapitalize="characters" />
       <ChoiceGroup label="Facility" options={facilities} value={facilities.includes(client.facility) ? client.facility : null} onSelect={(facility) => update('facility', facility)} />
       {facilities.length === 0 ? (
         <Text style={styles.historyError}>No facilities are configured. Add one below to continue.</Text>
@@ -1102,7 +1092,7 @@ function ScanScreen({ onCancel, onRecognized }: { onCancel: () => void; onRecogn
       <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" />
       <View style={styles.cameraOverlay}>
         <View style={styles.scanFrame} />
-        <Text style={styles.cameraHelp}>Align the client information inside the frame.</Text>
+        <Text style={styles.cameraHelp}>Align the client name, facility, and room inside the frame.</Text>
         <PrimaryButton label="Capture and recognize text" onPress={capture} busy={busy} />
         <SecondaryButton label="Cancel" onPress={onCancel} light />
       </View>
@@ -1245,8 +1235,6 @@ function ReviewScreen({
       <ReviewCard title="Clinician" rows={[['Name', `${profile.name}, ${profile.credentials}`]]} />
       <ReviewCard title="Client" rows={[
         ['Name', client.name],
-        ['Date of birth', client.dateOfBirth],
-        ['Medical record #', client.medicalRecordNumber],
         ['Facility / room', `${client.facility} / ${client.roomNumber}`],
       ]} />
       <ReviewCard title="Procedure" rows={[
