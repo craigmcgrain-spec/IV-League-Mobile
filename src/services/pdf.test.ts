@@ -1,5 +1,7 @@
 import {
   buildAttachmentFilename,
+  buildCompletedProceduresFilename,
+  buildCompletedProceduresHtml,
   buildReportHtml,
   cleanupStaleSharedReports,
   escapeHtml,
@@ -28,28 +30,36 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: 'Demo Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo Medical Center',
         roomNumber: '204B',
       },
       procedure: {
         task: 'IV Insertion',
         size: '20ga',
+        catheterLength: null,
         side: 'Right',
         location: 'Forearm',
+        notes: 'Smooth insertion; patient tolerated well.',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     } as const;
     const html = buildReportHtml(record);
 
-    expect(html).toContain('IV LEAGUE');
-    expect(html).toContain('Demo Clinician');
-    expect(html).toContain('SAFE-001');
+    expect(html).toContain('The IV League II');
+    expect(html).not.toContain('>IV LEAGUE<');
+    expect(html).toContain('<th>Name and credentials</th><td>Demo Clinician, RN</td>');
+    expect(html).not.toContain('<th>Professional credentials</th>');
     expect(html).toContain('IV Insertion');
     expect(html).toContain('20ga');
+    expect(html).toContain('<th>Notes</th><td>Smooth insertion; patient tolerated well.</td>');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
+    expect(html.indexOf('<th>Location</th>'))
+      .toBeLessThan(html.indexOf('<th>Notes</th>'));
+    expect(html.indexOf('<h2>Procedure details</h2>'))
+      .toBeLessThan(html.indexOf('<h2>Clinician</h2>'));
+    expect(html.indexOf('<h2>Clinician</h2>'))
+      .toBeLessThan(html.indexOf('<div class="footer">'));
     expect(buildAttachmentFilename(record)).toBe('Demo Medical Center_Demo Patient_2026-09-01.pdf');
   });
 
@@ -58,12 +68,16 @@ describe('PDF report', () => {
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
         name: '../Demo/Patient',
-        dateOfBirth: '01/02/1980',
-        medicalRecordNumber: 'SAFE-001',
         facility: 'Demo:Facility?',
         roomNumber: '204B',
       },
-      procedure: { task: 'Blood Draw', size: null, side: null, location: null },
+      procedure: {
+        task: 'Blood Draw',
+        size: null,
+        catheterLength: null,
+        side: null,
+        location: null,
+      },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     })).toBe('Demo-Facility_..-Demo-Patient_2026-09-01.pdf');
   });
@@ -85,5 +99,187 @@ describe('PDF report', () => {
       '/cache/iv-league-reports/Demo Facility_Demo Patient_2026-09-01.pdf',
       { idempotent: true },
     );
+  });
+
+  it('formats a selected Completed Procedures document', () => {
+    const records = [{
+      id: 1,
+      completedAt: '2026-09-01T12:00:00.000Z',
+      task: 'IV Insertion',
+      clientName: 'Demo Patient',
+      facility: 'Demo Medical Center',
+      roomNumber: '204B',
+      details: '20ga · Right Forearm · Supplies: IV x2',
+      procedure: null,
+      hasPdf: true,
+      pdfFilename: 'demo.pdf',
+      includedInBatch: false,
+      archived: false,
+    }] as const;
+
+    const html = buildCompletedProceduresHtml(
+      { name: 'Demo Clinician', credentials: 'RN' },
+      [...records],
+    );
+
+    expect(html).toContain('Demo Clinician, RN');
+    expect(html).toContain('The IV League II');
+    expect(html).toContain('09/01/2026 through 09/01/2026');
+    expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
+    expect(html).toContain('IV Insertion - 20ga · Right Forearm · Supplies: IV x2');
+    expect(buildCompletedProceduresFilename([...records]))
+      .toBe('Completed Procedures_2026-09-01_to_2026-09-01.pdf');
+  });
+
+  it('includes side and location but not catheter size for a blood draw', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Blood Draw',
+        size: null,
+        catheterLength: null,
+        side: 'Left',
+        location: 'Antecubital',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Side</th><td>Left</td>');
+    expect(html).toContain('<th>Location</th><td>Antecubital</td>');
+    expect(html).not.toContain('<th>Size</th>');
+    expect(html).not.toContain('<th>Number of attempts</th>');
+    expect(html).not.toContain('<th>Cap change</th>');
+  });
+
+  it('includes catheter length but not gauge size for a PICC insertion', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'PICC Insertion',
+        size: null,
+        catheterLength: '45 cm',
+        side: 'Right',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Catheter length</th><td>45 cm</td>');
+    expect(html).not.toContain('<th>Size</th>');
+  });
+
+  it('includes side and location for a Midline insertion', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Midline Insertion',
+        size: null,
+        catheterLength: null,
+        side: 'Right',
+        location: 'Upper Arm',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('Midline Insertion');
+    expect(html).toContain('<th>Side</th><td>Right</td>');
+    expect(html).toContain('<th>Location</th><td>Upper Arm</td>');
+    expect(html).not.toContain('<th>Size</th>');
+    expect(html).not.toContain('<th>Catheter length</th>');
+  });
+
+  it('includes side and Chest location for Port Access', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Port Access',
+        size: null,
+        catheterLength: null,
+        side: 'Left',
+        location: 'Chest',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('Port Access');
+    expect(html).toContain('<th>Side</th><td>Left</td>');
+    expect(html).toContain('<th>Location</th><td>Chest</td>');
+  });
+
+  it('includes troubleshooting device, site, and free-text notes', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Troubleshoot',
+        size: null,
+        catheterLength: null,
+        side: 'Right',
+        location: 'Forearm',
+        troubleshootDevice: 'IV',
+        notes: 'No blood return; repositioned and flushed.',
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Device type</th><td>IV</td>');
+    expect(html).toContain('<th>Side</th><td>Right</td>');
+    expect(html).toContain('<th>Location</th><td>Forearm</td>');
+    expect(html).toContain(
+      '<th>Notes</th><td>No blood return; repositioned and flushed.</td>',
+    );
+  });
+
+  it('includes entered supply quantities', () => {
+    const html = buildReportHtml({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'Dressing Change',
+        size: null,
+        catheterLength: null,
+        side: 'Left',
+        location: 'Port',
+        supplies: {
+          'Supplies: Port Access': '1',
+          'Supplies: Dressing': '2',
+          'Supplies: IV': '',
+        },
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(html).toContain('<th>Supplies: Port Access</th><td>1</td>');
+    expect(html).toContain('<th>Supplies: Dressing</th><td>2</td>');
+    expect(html).not.toContain('<th>Supplies: IV</th>');
+    expect(html).not.toContain('<th>Cap change</th>');
   });
 });

@@ -2,25 +2,27 @@
   "expo": {
     "name": "IV League",
     "slug": "iv-league-mobile",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ivleague.mobile",
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "IV League uses the camera only to recognize client intake text for your review."
       }
     },
     "android": {
       "package": "com.ivleague.mobile",
+      "versionCode": 6,
       "permissions": [
         "CAMERA",
         "USE_BIOMETRIC"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#4D8CA1",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

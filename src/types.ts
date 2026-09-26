@@ -5,22 +5,39 @@ export interface UserProfile {
 
 export interface Client {
   name: string;
-  dateOfBirth: string;
-  medicalRecordNumber: string;
   facility: string;
   roomNumber: string;
 }
 
-export type ProcedureTask = 'IV Insertion' | 'PICC Insertion' | 'Blood Draw' | 'Dressing Change';
+export type ProcedureTask =
+  | 'IV Insertion'
+  | 'Midline Insertion'
+  | 'PICC Insertion'
+  | 'Blood Draw'
+  | 'Dressing Change'
+  | 'Port Access'
+  | 'Troubleshoot';
 export type ProcedureSize = '24ga' | '22ga' | '20ga' | '18ga' | '16ga';
 export type ProcedureSide = 'Right' | 'Left';
-export type ProcedureLocation = 'Hand' | 'Wrist' | 'Forearm' | 'Antecubital' | 'Upper Arm';
+export type TroubleshootDevice = 'IV' | 'Midline' | 'PICC';
+export type ProcedureLocation =
+  | 'Hand'
+  | 'Wrist'
+  | 'Forearm'
+  | 'Antecubital'
+  | 'Upper Arm'
+  | 'Chest'
+  | 'Port';
 
 export interface Procedure {
   task: ProcedureTask | null;
   size: ProcedureSize | null;
+  catheterLength: string | null;
   side: ProcedureSide | null;
   location: ProcedureLocation | null;
+  troubleshootDevice?: TroubleshootDevice | null;
+  notes?: string | null;
+  supplies?: Record<string, string> | null;
 }
 
 export interface CompletionRecord {
@@ -36,7 +53,11 @@ export interface CompletedProcedure {
   task: ProcedureTask;
   clientName: string;
   facility: string;
+  roomNumber: string;
   details: string;
+  procedure: Procedure | null;
   hasPdf: boolean;
   pdfFilename: string | null;
+  includedInBatch: boolean;
+  archived: boolean;
 }

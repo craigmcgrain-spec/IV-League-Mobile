@@ -1,27 +1,125 @@
-import type { Client, Procedure, ProcedureTask } from '../types';
+import type {
+  Client,
+  Procedure,
+  ProcedureLocation,
+  ProcedureTask,
+} from '../types';
 
 export const EMPTY_CLIENT: Client = {
   name: '',
-  dateOfBirth: '',
-  medicalRecordNumber: '',
   facility: '',
   roomNumber: '',
 };
 
-export const TASKS = ['IV Insertion', 'PICC Insertion', 'Blood Draw', 'Dressing Change'] as const;
+export const TASKS = [
+  'IV Insertion',
+  'Midline Insertion',
+  'PICC Insertion',
+  'Blood Draw',
+  'Dressing Change',
+  'Port Access',
+  'Troubleshoot',
+] as const;
 export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
 export const SIDES = ['Right', 'Left'] as const;
-export const LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
+export const TROUBLESHOOT_DEVICES = ['IV', 'Midline', 'PICC'] as const;
+export const SUPPLIES = [
+  'Supplies: IV',
+  'Supplies: Midline',
+  'Supplies: PICC',
+  'Supplies: Port Access',
+  'Supplies: Dressing',
+] as const;
+const STANDARD_LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
+const DRESSING_CHANGE_LOCATIONS = [...STANDARD_LOCATIONS, 'Port'] as const;
+const PORT_ACCESS_LOCATIONS = ['Chest'] as const;
+
+export function formatProcedureDateTime(value: Date): { date: string; time: string } {
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  const year = value.getFullYear();
+  const period = value.getHours() >= 12 ? 'PM' : 'AM';
+  const hour = value.getHours() % 12 || 12;
+  const minute = String(value.getMinutes()).padStart(2, '0');
+  return {
+    date: `${month}/${day}/${year}`,
+    time: `${hour}:${minute} ${period}`,
+  };
+}
+
+export function parseProcedureDateTime(dateValue: string, timeValue: string): Date | null {
+  const dateMatch = dateValue.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const timeMatch = timeValue.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?$/i);
+  if (!dateMatch || !timeMatch) {
+    return null;
+  }
+
+  const month = Number(dateMatch[1]);
+  const day = Number(dateMatch[2]);
+  const year = Number(dateMatch[3]);
+  const enteredHour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const period = timeMatch[3]?.toUpperCase();
+  if (minute > 59 || (period && (enteredHour < 1 || enteredHour > 12)) || (!period && enteredHour > 23)) {
+    return null;
+  }
+
+  const hour = period
+    ? (enteredHour % 12) + (period === 'PM' ? 12 : 0)
+    : enteredHour;
+  const result = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (
+    result.getFullYear() !== year
+    || result.getMonth() !== month - 1
+    || result.getDate() !== day
+  ) {
+    return null;
+  }
+  return result;
+}
+
+export function needsCatheterSize(task: ProcedureTask | null): boolean {
+  return task === 'IV Insertion';
+}
+
+export function needsCatheterLength(task: ProcedureTask | null): boolean {
+  return task === 'PICC Insertion';
+}
 
 export function needsProcedureDetails(task: ProcedureTask | null): boolean {
-  return task === 'IV Insertion' || task === 'PICC Insertion';
+  return task !== null;
+}
+
+export function needsTroubleshootDetails(task: ProcedureTask | null): boolean {
+  return task === 'Troubleshoot';
+}
+
+export function supplyLabel(supply: string): string {
+  return supply.replace(/^Supplies:\s*/, '');
+}
+
+export function parseSupplyQuantity(value: string | null | undefined): number | null {
+  const trimmed = value?.trim() ?? '';
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function locationsForTask(task: ProcedureTask | null): readonly ProcedureLocation[] {
+  if (task === 'Port Access') {
+    return PORT_ACCESS_LOCATIONS;
+  }
+  if (task === 'Dressing Change') {
+    return DRESSING_CHANGE_LOCATIONS;
+  }
+  return STANDARD_LOCATIONS;
 }
 
 export function validateClient(client: Client): string[] {
   const fields: [keyof Client, string][] = [
     ['name', 'name'],
-    ['dateOfBirth', 'date of birth'],
-    ['medicalRecordNumber', 'medical record number'],
     ['facility', 'facility'],
     ['roomNumber', 'room number'],
   ];
@@ -35,20 +133,59 @@ export function validateProcedure(procedure: Procedure): string[] {
   if (!needsProcedureDetails(procedure.task)) {
     return [];
   }
+  const invalidSupplies = Object.entries(procedure.supplies ?? {})
+    .filter(([, value]) => value.trim() !== '' && parseSupplyQuantity(value) === null)
+    .map(([supply]) => `supplies quantity for ${supplyLabel(supply)}`);
   return [
-    !procedure.size ? 'size' : '',
+    needsCatheterSize(procedure.task) && !procedure.size ? 'size' : '',
+    needsCatheterLength(procedure.task) && !procedure.catheterLength?.trim() ? 'catheter length' : '',
+    needsTroubleshootDetails(procedure.task) && !procedure.troubleshootDevice
+      ? 'device type'
+      : '',
+    needsTroubleshootDetails(procedure.task) && !procedure.notes?.trim()
+      ? 'troubleshooting notes'
+      : '',
     !procedure.side ? 'side' : '',
-    !procedure.location ? 'location' : '',
+    !procedure.location || !locationsForTask(procedure.task).includes(procedure.location)
+      ? 'location'
+      : '',
+    ...invalidSupplies,
   ].filter(Boolean);
 }
 
 const LABELS: [keyof Client, RegExp][] = [
-  ['dateOfBirth', /^(?:date\s*of\s*birth|dob)\s*[:#-]?\s*(.+)$/i],
-  ['medicalRecordNumber', /^(?:medical\s*record\s*(?:number|no\.?)?|mrn)\s*[:#-]?\s*(.+)$/i],
   ['facility', /^facility\s*[:#-]?\s*(.+)$/i],
   ['roomNumber', /^room(?:\s*(?:number|no\.?))?\s*[:#-]?\s*(.+)$/i],
-  ['name', /^(?:client|patient)?\s*name\s*[:#-]?\s*(.+)$/i],
+  ['name', /^(?:(?:client|patient)(?:\s*name)?|name)\s*[:#-]?\s*(.+)$/i],
 ];
+
+const LAST_FIRST_NAME_PATTERN =
+  /^([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*),\s*([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*)*)$/u;
+const NON_NAME_WORDS = new Set([
+  'date',
+  'facility',
+  'room',
+  'patient',
+  'client',
+]);
+
+function findUniqueLastFirstName(lines: string[]): string | null {
+  const candidates = new Set<string>();
+  for (const line of lines) {
+    const match = line.match(LAST_FIRST_NAME_PATTERN);
+    const lastName = match?.[1];
+    const firstName = match?.[2];
+    if (!lastName || !firstName || line.length > 80) {
+      continue;
+    }
+    const words = `${lastName} ${firstName}`.toLowerCase().split(/\s+/);
+    if (words.length > 6 || words.some((word) => NON_NAME_WORDS.has(word.replace(/[.'-]/g, '')))) {
+      continue;
+    }
+    candidates.add(`${lastName.replace(/\s+/g, ' ')}, ${firstName.replace(/\s+/g, ' ')}`);
+  }
+  return candidates.size === 1 ? (candidates.values().next().value ?? null) : null;
+}
 
 export function parseIntakeText(text: string): Partial<Client> {
   const parsed: Partial<Client> = {};
@@ -61,6 +198,12 @@ export function parseIntakeText(text: string): Partial<Client> {
         parsed[field] = match[1].trim();
         break;
       }
+    }
+  }
+  if (!parsed.name) {
+    const lastFirstName = findUniqueLastFirstName(lines);
+    if (lastFirstName) {
+      parsed.name = lastFirstName;
     }
   }
   return parsed;
