@@ -1,11 +1,10 @@
 import {
-  defaultAttemptsForTask,
   formatProcedureDateTime,
   locationsForTask,
   needsCatheterLength,
   needsCatheterSize,
-  needsAttempts,
   needsProcedureDetails,
+  parseSupplyQuantity,
   parseIntakeText,
   parseProcedureDateTime,
   validateClient,
@@ -71,7 +70,6 @@ describe('workflow', () => {
       task: 'IV Insertion',
       size: '20ga',
       catheterLength: null,
-      attempts: '1',
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
@@ -84,7 +82,6 @@ describe('workflow', () => {
       task: 'Blood Draw',
       size: null,
       catheterLength: null,
-      attempts: '1',
       side: null,
       location: null,
     })).toEqual(['side', 'location']);
@@ -92,7 +89,6 @@ describe('workflow', () => {
       task: 'Blood Draw',
       size: null,
       catheterLength: null,
-      attempts: '2',
       side: 'Left',
       location: 'Antecubital',
     })).toEqual([]);
@@ -105,7 +101,6 @@ describe('workflow', () => {
       task: 'PICC Insertion',
       size: null,
       catheterLength: '',
-      attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
     })).toEqual(['catheter length']);
@@ -113,43 +108,43 @@ describe('workflow', () => {
       task: 'PICC Insertion',
       size: null,
       catheterLength: '45 cm',
-      attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
     })).toEqual([]);
   });
 
-  it('requires side, location, and a cap-change answer for dressing changes', () => {
+  it('requires side and location for dressing changes without a cap-change answer', () => {
     expect(needsProcedureDetails('Dressing Change')).toBe(true);
     expect(validateProcedure({
       task: 'Dressing Change',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: null,
       location: null,
-      capChanged: null,
-    })).toEqual(['cap change', 'side', 'location']);
+    })).toEqual(['side', 'location']);
+    expect(validateProcedure({
+      task: 'Dressing Change',
+      size: null,
+      catheterLength: null,
+      side: 'Left',
+      location: 'Port',
+    })).toEqual([]);
   });
 
-  it('supports Midline Insertion with default attempts, side, and location', () => {
+  it('supports Midline Insertion with side and location only', () => {
     expect(needsCatheterSize('Midline Insertion')).toBe(false);
     expect(needsCatheterLength('Midline Insertion')).toBe(false);
-    expect(needsAttempts('Midline Insertion')).toBe(true);
-    expect(defaultAttemptsForTask('Midline Insertion')).toBe('1');
     expect(validateProcedure({
       task: 'Midline Insertion',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: null,
       location: null,
-    })).toEqual(['number of attempts', 'side', 'location']);
+    })).toEqual(['side', 'location']);
     expect(validateProcedure({
       task: 'Midline Insertion',
       size: null,
       catheterLength: null,
-      attempts: '1',
       side: 'Right',
       location: 'Upper Arm',
     })).toEqual([]);
@@ -163,7 +158,6 @@ describe('workflow', () => {
       task: 'Port Access',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: 'Right',
       location: 'Port',
     })).toEqual(['location']);
@@ -171,7 +165,6 @@ describe('workflow', () => {
       task: 'Port Access',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: 'Right',
       location: 'Chest',
     })).toEqual([]);
@@ -179,10 +172,8 @@ describe('workflow', () => {
       task: 'Dressing Change',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: 'Left',
       location: 'Port',
-      capChanged: 'No',
     })).toEqual([]);
   });
 
@@ -198,23 +189,61 @@ describe('workflow', () => {
       task: 'Troubleshoot',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: null,
       location: null,
       troubleshootDevice: null,
-      troubleshootingNotes: ' ',
-      capChanged: null,
+      notes: ' ',
     })).toEqual(['device type', 'troubleshooting notes', 'side', 'location']);
     expect(validateProcedure({
       task: 'Troubleshoot',
       size: null,
       catheterLength: null,
-      attempts: null,
       side: 'Right',
       location: 'Forearm',
       troubleshootDevice: 'IV',
-      troubleshootingNotes: 'No blood return; repositioned and flushed.',
-      capChanged: null,
+      notes: 'No blood return; repositioned and flushed.',
     })).toEqual([]);
+  });
+
+  it('treats notes as optional for non-troubleshooting tasks', () => {
+    expect(validateProcedure({
+      task: 'IV Insertion',
+      size: '20ga',
+      catheterLength: null,
+      side: 'Right',
+      location: 'Forearm',
+      notes: '',
+      supplies: {},
+    })).toEqual([]);
+  });
+
+  it('rejects supplies quantities that are not non-negative numbers', () => {
+    expect(parseSupplyQuantity('2')).toBe(2);
+    expect(parseSupplyQuantity('2.5')).toBe(2.5);
+    expect(parseSupplyQuantity(' 0 ')).toBe(0);
+    expect(parseSupplyQuantity('two')).toBeNull();
+    expect(parseSupplyQuantity('-1')).toBeNull();
+    expect(parseSupplyQuantity('')).toBeNull();
+    expect(parseSupplyQuantity(null)).toBeNull();
+
+    expect(validateProcedure({
+      task: 'IV Insertion',
+      size: '20ga',
+      catheterLength: null,
+      side: 'Right',
+      location: 'Forearm',
+      supplies: { 'Supplies: IV': '2', 'Supplies: Dressing': '' },
+    })).toEqual([]);
+    expect(validateProcedure({
+      task: 'IV Insertion',
+      size: '20ga',
+      catheterLength: null,
+      side: 'Right',
+      location: 'Forearm',
+      supplies: { 'Supplies: IV': 'two', 'Supplies: Dressing': '-3' },
+    })).toEqual([
+      'supplies quantity for IV',
+      'supplies quantity for Dressing',
+    ]);
   });
 });

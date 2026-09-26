@@ -1,10 +1,10 @@
 import {
-  needsAttempts,
-  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
   needsTroubleshootDetails,
+  parseSupplyQuantity,
+  SUPPLIES,
 } from './workflow';
 import type { CompletedProcedure, CompletionRecord } from '../types';
 
@@ -17,6 +17,12 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
   if (!record.procedure.task) {
     throw new Error('A completed procedure must have a task');
   }
+  const supplies = SUPPLIES
+    .map((supply) => {
+      const quantity = parseSupplyQuantity(record.procedure.supplies?.[supply]);
+      return quantity ? `${supply} x${quantity}` : null;
+    })
+    .filter(Boolean);
   const details = [
     needsCatheterSize(record.procedure.task) ? record.procedure.size : null,
     needsCatheterLength(record.procedure.task) && record.procedure.catheterLength?.trim()
@@ -28,15 +34,10 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     needsProcedureDetails(record.procedure.task) && record.procedure.side && record.procedure.location
       ? `${record.procedure.side} ${record.procedure.location}`
       : null,
-    needsCapChange(record.procedure.task) && record.procedure.capChanged
-      ? `Cap change: ${record.procedure.capChanged}`
+    record.procedure.notes?.trim()
+      ? `Notes: ${record.procedure.notes.trim()}`
       : null,
-    needsTroubleshootDetails(record.procedure.task) && record.procedure.troubleshootingNotes?.trim()
-      ? `Notes: ${record.procedure.troubleshootingNotes.trim()}`
-      : null,
-    needsAttempts(record.procedure.task) && record.procedure.attempts
-      ? `Attempts: ${record.procedure.attempts}`
-      : null,
+    ...supplies,
   ].filter(Boolean).join(' · ');
 
   return {
@@ -46,5 +47,6 @@ export function completionSummary(record: CompletionRecord): NewCompletedProcedu
     facility: record.client.facility.trim(),
     roomNumber: record.client.roomNumber.trim(),
     details,
+    procedure: record.procedure,
   };
 }

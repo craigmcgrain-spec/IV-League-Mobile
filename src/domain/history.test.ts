@@ -1,7 +1,7 @@
 import { completionSummary } from './history';
 
 describe('completion history', () => {
-  it('stores only the minimal procedure summary', () => {
+  it('stores the procedure summary with structured procedure facts', () => {
     const summary = completionSummary({
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
@@ -13,7 +13,6 @@ describe('completion history', () => {
         task: 'IV Insertion',
         size: '20ga',
         catheterLength: null,
-        attempts: '1',
         side: 'Right',
         location: 'Forearm',
       },
@@ -26,7 +25,14 @@ describe('completion history', () => {
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
       roomNumber: '204B',
-      details: '20ga · Right Forearm · Attempts: 1',
+      details: '20ga · Right Forearm',
+      procedure: {
+        task: 'IV Insertion',
+        size: '20ga',
+        catheterLength: null,
+        side: 'Right',
+        location: 'Forearm',
+      },
     });
   });
 
@@ -42,7 +48,6 @@ describe('completion history', () => {
         task: null,
         size: null,
         catheterLength: null,
-        attempts: null,
         side: null,
         location: null,
       },
@@ -62,14 +67,13 @@ describe('completion history', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
-        attempts: '2',
         side: 'Left',
         location: 'Antecubital',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Left Antecubital · Attempts: 2');
+    expect(summary.details).toBe('Left Antecubital');
   });
 
   it('stores PICC catheter length with side and location', () => {
@@ -84,17 +88,16 @@ describe('completion history', () => {
         task: 'PICC Insertion',
         size: null,
         catheterLength: '45 cm',
-        attempts: '1',
         side: 'Right',
         location: 'Upper Arm',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Length: 45 cm · Right Upper Arm · Attempts: 1');
+    expect(summary.details).toBe('Length: 45 cm · Right Upper Arm');
   });
 
-  it('stores Midline attempts with side and location', () => {
+  it('stores Midline side and location', () => {
     const summary = completionSummary({
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
@@ -106,14 +109,13 @@ describe('completion history', () => {
         task: 'Midline Insertion',
         size: null,
         catheterLength: null,
-        attempts: '1',
         side: 'Left',
         location: 'Upper Arm',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Left Upper Arm · Attempts: 1');
+    expect(summary.details).toBe('Left Upper Arm');
   });
 
   it('stores Port Access side and Chest location', () => {
@@ -128,7 +130,6 @@ describe('completion history', () => {
         task: 'Port Access',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Right',
         location: 'Chest',
       },
@@ -151,12 +152,10 @@ describe('completion history', () => {
         task: 'Troubleshoot',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Left',
         location: 'Upper Arm',
         troubleshootDevice: 'PICC',
-        troubleshootingNotes: 'Difficult flush; dressing and tubing inspected.',
-        capChanged: null,
+        notes: 'Difficult flush; dressing and tubing inspected.',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
@@ -166,7 +165,7 @@ describe('completion history', () => {
     );
   });
 
-  it('stores the dressing-change cap answer', () => {
+  it('stores notes for any task, not only troubleshooting', () => {
     const summary = completionSummary({
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
@@ -178,14 +177,40 @@ describe('completion history', () => {
         task: 'Dressing Change',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Right',
         location: 'Port',
-        capChanged: 'Yes',
+        notes: 'Adhesive irritation noted.',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(summary.details).toBe('Right Port · Cap change: Yes');
+    expect(summary.details).toBe('Right Port · Notes: Adhesive irritation noted.');
+  });
+
+  it('stores supply quantities and ignores empty or invalid entries', () => {
+    const summary = completionSummary({
+      profile: { name: 'Demo Clinician', credentials: 'RN' },
+      client: {
+        name: 'Demo Patient',
+        facility: 'Demo Medical Center',
+        roomNumber: '204B',
+      },
+      procedure: {
+        task: 'IV Insertion',
+        size: '20ga',
+        catheterLength: null,
+        side: 'Right',
+        location: 'Forearm',
+        supplies: {
+          'Supplies: IV': '2',
+          'Supplies: Midline': '',
+          'Supplies: Dressing': '0',
+          'Supplies: PICC': 'not-a-number',
+        },
+      },
+      completedAt: new Date('2026-09-01T12:00:00Z'),
+    });
+
+    expect(summary.details).toBe('20ga · Right Forearm · Supplies: IV x2');
   });
 });

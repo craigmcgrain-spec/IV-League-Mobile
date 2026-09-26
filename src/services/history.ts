@@ -5,7 +5,7 @@ import * as SQLite from 'expo-sqlite';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { completionSummary } from '../domain/history';
-import type { CompletedProcedure, CompletionRecord, ProcedureTask } from '../types';
+import type { CompletedProcedure, CompletionRecord, Procedure, ProcedureTask } from '../types';
 
 const DATABASE_NAME = 'iv-league-history.db';
 const DATABASE_KEY = 'iv-league.history-key.v1';
@@ -19,6 +19,7 @@ interface CompletedProcedureRow {
   facility: string;
   room_number: string;
   details: string;
+  procedure_json: string | null;
   pdf_filename: string | null;
   has_pdf: number;
   included_in_batch: number;
@@ -54,6 +55,7 @@ async function openHistoryDatabase(): Promise<SQLite.SQLiteDatabase> {
       facility TEXT NOT NULL,
       room_number TEXT NOT NULL DEFAULT '',
       details TEXT NOT NULL,
+      procedure_json TEXT,
       pdf_filename TEXT,
       pdf_base64 TEXT,
       included_in_batch_at TEXT,
@@ -83,6 +85,9 @@ async function openHistoryDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!columns.some((column) => column.name === 'archived_at')) {
     await database.execAsync('ALTER TABLE completed_procedures ADD COLUMN archived_at TEXT;');
   }
+  if (!columns.some((column) => column.name === 'procedure_json')) {
+    await database.execAsync('ALTER TABLE completed_procedures ADD COLUMN procedure_json TEXT;');
+  }
   return database;
 }
 
@@ -94,6 +99,21 @@ function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return databasePromise;
 }
 
+function parseProcedureJson(value: string | null): Procedure | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Procedure;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function mapRow(row: CompletedProcedureRow): CompletedProcedure {
   return {
     id: row.id,
@@ -103,6 +123,7 @@ function mapRow(row: CompletedProcedureRow): CompletedProcedure {
     facility: row.facility,
     roomNumber: row.room_number,
     details: row.details,
+    procedure: parseProcedureJson(row.procedure_json),
     hasPdf: row.has_pdf === 1,
     pdfFilename: row.pdf_filename,
     includedInBatch: row.included_in_batch === 1,
@@ -116,7 +137,7 @@ export async function listCompletedProcedures(
 ): Promise<{ records: CompletedProcedure[]; hasMore: boolean }> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<CompletedProcedureRow>(`
-    SELECT id, completed_at, task, client_name, facility, room_number, details, pdf_filename,
+    SELECT id, completed_at, task, client_name, facility, room_number, details, procedure_json, pdf_filename,
       CASE WHEN pdf_base64 IS NOT NULL THEN 1 ELSE 0 END AS has_pdf,
       CASE WHEN included_in_batch_at IS NOT NULL THEN 1 ELSE 0 END AS included_in_batch,
       CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END AS archived
@@ -143,14 +164,15 @@ export async function saveCompletedProcedure(
   const database = await getDatabase();
   const result = await database.runAsync(
     `INSERT INTO completed_procedures
-      (completed_at, task, client_name, facility, room_number, details, pdf_filename, pdf_base64)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (completed_at, task, client_name, facility, room_number, details, procedure_json, pdf_filename, pdf_base64)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     summary.completedAt,
     summary.task,
     summary.clientName,
     summary.facility,
     summary.roomNumber,
     summary.details,
+    JSON.stringify(summary.procedure),
     pdfFilename,
     pdfBase64,
   );

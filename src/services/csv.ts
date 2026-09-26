@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { parseSupplyQuantity, SUPPLIES } from '../domain/workflow';
 import { shareFile } from '../native/sharing';
-import type { CompletedProcedure, UserProfile } from '../types';
+import type { CompletedProcedure, Procedure, UserProfile } from '../types';
 
 const EXPORT_DIRECTORY = `${FileSystem.cacheDirectory ?? ''}iv-league-exports/`;
 const EXPORT_MAX_AGE_MS = 60 * 60 * 1000;
@@ -11,6 +12,11 @@ function csvCell(value: string): string {
   const flattened = value.replace(/\r?\n/g, ' ').trim();
   const spreadsheetSafe = /^[=+\-@]/.test(flattened) ? `'${flattened}` : flattened;
   return `"${spreadsheetSafe.replaceAll('"', '""')}"`;
+}
+
+function supplyCell(procedure: Procedure | null, supply: string): string {
+  const quantity = parseSupplyQuantity(procedure?.supplies?.[supply]);
+  return quantity === null ? '' : String(quantity);
 }
 
 export function buildCompletedProceduresCsv(
@@ -29,6 +35,11 @@ export function buildCompletedProceduresCsv(
     'Facility',
     'Room Number',
     'Procedure Details',
+    'Gauge',
+    'Side',
+    'Location',
+    'Notes',
+    ...SUPPLIES,
   ];
   const rows = [...records]
     .sort((left, right) => (
@@ -43,6 +54,11 @@ export function buildCompletedProceduresCsv(
       record.facility,
       record.roomNumber,
       record.details,
+      record.procedure?.size ?? '',
+      record.procedure?.side ?? '',
+      record.procedure?.location ?? '',
+      record.procedure?.notes?.trim() ?? '',
+      ...SUPPLIES.map((supply) => supplyCell(record.procedure, supply)),
     ]);
   return `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
 }

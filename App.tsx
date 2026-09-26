@@ -52,17 +52,13 @@ import {
 } from './src/services/history';
 import {
   EMPTY_CLIENT,
-  ATTEMPT_OPTIONS,
   GAUGES,
   SIDES,
+  SUPPLIES,
   TASKS,
   TROUBLESHOOT_DEVICES,
-  YES_NO_OPTIONS,
-  defaultAttemptsForTask,
   formatProcedureDateTime,
   locationsForTask,
-  needsAttempts,
-  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
@@ -77,14 +73,12 @@ import type {
   CompletedProcedure,
   CompletionRecord,
   Procedure,
-  ProcedureAttempts,
   ProcedureLocation,
   ProcedureSide,
   ProcedureSize,
   ProcedureTask,
   TroubleshootDevice,
   UserProfile,
-  YesNo,
 } from './src/types';
 
 type Route = 'home' | 'facilities' | 'intake' | 'camera' | 'procedure' | 'review';
@@ -102,12 +96,11 @@ export default function App() {
     task: null,
     size: null,
     catheterLength: null,
-    attempts: null,
     side: null,
     location: null,
     troubleshootDevice: null,
-    troubleshootingNotes: null,
-    capChanged: null,
+    notes: null,
+    supplies: {},
   });
   const [procedureDateTime, setProcedureDateTime] = useState(() => formatProcedureDateTime(new Date()));
   const [completedAt, setCompletedAt] = useState(() => new Date());
@@ -193,12 +186,11 @@ export default function App() {
       task: null,
       size: null,
       catheterLength: null,
-      attempts: null,
       side: null,
       location: null,
       troubleshootDevice: null,
-      troubleshootingNotes: null,
-      capChanged: null,
+      notes: null,
+      supplies: {},
     });
     const now = new Date();
     setProcedureDateTime(formatProcedureDateTime(now));
@@ -1153,7 +1145,6 @@ function ProcedureScreen({
       task,
       size: needsCatheterSize(task) ? procedure.size : null,
       catheterLength: needsCatheterLength(task) ? procedure.catheterLength : null,
-      attempts: needsAttempts(task) ? (procedure.attempts ?? defaultAttemptsForTask(task)) : null,
       side: needsProcedureDetails(task) ? procedure.side : null,
       location: needsProcedureDetails(task)
         && procedure.location
@@ -1161,8 +1152,8 @@ function ProcedureScreen({
         ? procedure.location
         : null,
       troubleshootDevice: needsTroubleshootDetails(task) ? procedure.troubleshootDevice : null,
-      troubleshootingNotes: needsTroubleshootDetails(task) ? procedure.troubleshootingNotes : null,
-      capChanged: needsCapChange(task) ? procedure.capChanged : null,
+      notes: procedure.notes ?? null,
+      supplies: procedure.supplies ?? {},
     });
   };
   const continueFlow = () => {
@@ -1210,39 +1201,34 @@ function ProcedureScreen({
             value={procedure.location}
             onSelect={(location) => onChange({ ...procedure, location: location as ProcedureLocation })}
           />
-          {needsAttempts(procedure.task) ? (
-            <ChoiceGroup
-              label="Number of attempts"
-              options={ATTEMPT_OPTIONS}
-              value={procedure.attempts}
-              onSelect={(attempts) => onChange({ ...procedure, attempts: attempts as ProcedureAttempts })}
-              compact
-            />
-          ) : null}
-          {needsCapChange(procedure.task) ? (
-            <ChoiceGroup
-              label="Cap change"
-              options={YES_NO_OPTIONS}
-              value={procedure.capChanged ?? null}
-              onSelect={(capChanged) => onChange({ ...procedure, capChanged: capChanged as YesNo })}
-              compact
-            />
-          ) : null}
-          {needsTroubleshootDetails(procedure.task) ? (
-            <Field
-              label="Troubleshooting notes"
-              value={procedure.troubleshootingNotes ?? ''}
-              onChangeText={(troubleshootingNotes) => onChange({
-                ...procedure,
-                troubleshootingNotes,
-              })}
-              placeholder="Describe the issue and actions taken"
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              style={[styles.input, styles.multilineInput]}
-            />
-          ) : null}
+          <Field
+            label="Notes"
+            value={procedure.notes ?? ''}
+            onChangeText={(notes) => onChange({ ...procedure, notes })}
+            placeholder={needsTroubleshootDetails(procedure.task)
+              ? 'Describe the issue and actions taken'
+              : 'Optional notes'}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            style={[styles.input, styles.multilineInput]}
+          />
+          <View style={styles.suppliesSection}>
+            <Text style={styles.fieldLabel}>Supplies used</Text>
+            {SUPPLIES.map((supply) => (
+              <Field
+                key={supply}
+                label={supply.replace(/^Supplies:\s*/, '')}
+                value={procedure.supplies?.[supply] ?? ''}
+                onChangeText={(value) => onChange({
+                  ...procedure,
+                  supplies: { ...procedure.supplies, [supply]: value },
+                })}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+            ))}
+          </View>
         </>
       ) : null}
       <PrimaryButton label="Review completion record" onPress={continueFlow} />
@@ -1325,15 +1311,15 @@ function ReviewScreen({
               : []),
             ['Side', procedure.side ?? ''],
             ['Location', procedure.location ?? ''],
-            ...(needsCapChange(procedure.task)
-              ? [['Cap change', procedure.capChanged ?? '']] as [string, string][]
+            ...(procedure.notes?.trim()
+              ? [['Notes', procedure.notes.trim()]] as [string, string][]
               : []),
-            ...(needsTroubleshootDetails(procedure.task)
-              ? [['Troubleshooting notes', procedure.troubleshootingNotes ?? '']] as [string, string][]
-              : []),
-            ...(needsAttempts(procedure.task)
-              ? [['Number of attempts', procedure.attempts ?? '']] as [string, string][]
-              : []),
+            ...SUPPLIES
+              .map((supply) => {
+                const quantity = procedure.supplies?.[supply]?.trim();
+                return quantity ? [supply, quantity] as [string, string] : null;
+              })
+              .filter((entry): entry is [string, string] => entry !== null),
           ] as [string, string][]
           : []),
       ]} />
@@ -1512,6 +1498,7 @@ const styles = StyleSheet.create({
   scanFrame: { position: 'absolute', top: '19%', left: '8%', width: '84%', height: '45%', borderRadius: 18, borderWidth: 3, borderColor: 'white' },
   cameraHelp: { color: 'white', fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 4 },
   choiceGroup: { gap: 10 },
+  suppliesSection: { gap: 12 },
   choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   choice: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 12 },
   choiceCompact: { minWidth: 72, alignItems: 'center' },

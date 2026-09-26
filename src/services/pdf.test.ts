@@ -37,9 +37,9 @@ describe('PDF report', () => {
         task: 'IV Insertion',
         size: '20ga',
         catheterLength: null,
-        attempts: '1',
         side: 'Right',
         location: 'Forearm',
+        notes: 'Smooth insertion; patient tolerated well.',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     } as const;
@@ -51,11 +51,11 @@ describe('PDF report', () => {
     expect(html).not.toContain('<th>Professional credentials</th>');
     expect(html).toContain('IV Insertion');
     expect(html).toContain('20ga');
-    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
+    expect(html).toContain('<th>Notes</th><td>Smooth insertion; patient tolerated well.</td>');
     expect(html).toContain('Right');
     expect(html).toContain('Forearm');
     expect(html.indexOf('<th>Location</th>'))
-      .toBeLessThan(html.indexOf('<th>Number of attempts</th>'));
+      .toBeLessThan(html.indexOf('<th>Notes</th>'));
     expect(html.indexOf('<h2>Procedure details</h2>'))
       .toBeLessThan(html.indexOf('<h2>Clinician</h2>'));
     expect(html.indexOf('<h2>Clinician</h2>'))
@@ -75,7 +75,6 @@ describe('PDF report', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
-        attempts: '1',
         side: null,
         location: null,
       },
@@ -110,7 +109,8 @@ describe('PDF report', () => {
       clientName: 'Demo Patient',
       facility: 'Demo Medical Center',
       roomNumber: '204B',
-      details: '20ga · Right Forearm · Attempts: 1',
+      details: '20ga · Right Forearm · Supplies: IV x2',
+      procedure: null,
       hasPdf: true,
       pdfFilename: 'demo.pdf',
       includedInBatch: false,
@@ -126,7 +126,7 @@ describe('PDF report', () => {
     expect(html).toContain('The IV League II');
     expect(html).toContain('09/01/2026 through 09/01/2026');
     expect(html).toContain('Demo Patient at Demo Medical Center room 204B');
-    expect(html).toContain('IV Insertion - 20ga · Right Forearm · Attempts: 1');
+    expect(html).toContain('IV Insertion - 20ga · Right Forearm · Supplies: IV x2');
     expect(buildCompletedProceduresFilename([...records]))
       .toBe('Completed Procedures_2026-09-01_to_2026-09-01.pdf');
   });
@@ -143,7 +143,6 @@ describe('PDF report', () => {
         task: 'Blood Draw',
         size: null,
         catheterLength: null,
-        attempts: '2',
         side: 'Left',
         location: 'Antecubital',
       },
@@ -152,8 +151,9 @@ describe('PDF report', () => {
 
     expect(html).toContain('<th>Side</th><td>Left</td>');
     expect(html).toContain('<th>Location</th><td>Antecubital</td>');
-    expect(html).toContain('<th>Number of attempts</th><td>2</td>');
     expect(html).not.toContain('<th>Size</th>');
+    expect(html).not.toContain('<th>Number of attempts</th>');
+    expect(html).not.toContain('<th>Cap change</th>');
   });
 
   it('includes catheter length but not gauge size for a PICC insertion', () => {
@@ -168,7 +168,6 @@ describe('PDF report', () => {
         task: 'PICC Insertion',
         size: null,
         catheterLength: '45 cm',
-        attempts: '1',
         side: 'Right',
         location: 'Upper Arm',
       },
@@ -176,11 +175,10 @@ describe('PDF report', () => {
     });
 
     expect(html).toContain('<th>Catheter length</th><td>45 cm</td>');
-    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
     expect(html).not.toContain('<th>Size</th>');
   });
 
-  it('includes attempts, side, and location for a Midline insertion', () => {
+  it('includes side and location for a Midline insertion', () => {
     const html = buildReportHtml({
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
@@ -192,7 +190,6 @@ describe('PDF report', () => {
         task: 'Midline Insertion',
         size: null,
         catheterLength: null,
-        attempts: '1',
         side: 'Right',
         location: 'Upper Arm',
       },
@@ -200,7 +197,6 @@ describe('PDF report', () => {
     });
 
     expect(html).toContain('Midline Insertion');
-    expect(html).toContain('<th>Number of attempts</th><td>1</td>');
     expect(html).toContain('<th>Side</th><td>Right</td>');
     expect(html).toContain('<th>Location</th><td>Upper Arm</td>');
     expect(html).not.toContain('<th>Size</th>');
@@ -219,7 +215,6 @@ describe('PDF report', () => {
         task: 'Port Access',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Left',
         location: 'Chest',
       },
@@ -229,7 +224,6 @@ describe('PDF report', () => {
     expect(html).toContain('Port Access');
     expect(html).toContain('<th>Side</th><td>Left</td>');
     expect(html).toContain('<th>Location</th><td>Chest</td>');
-    expect(html).not.toContain('<th>Number of attempts</th>');
   });
 
   it('includes troubleshooting device, site, and free-text notes', () => {
@@ -244,12 +238,10 @@ describe('PDF report', () => {
         task: 'Troubleshoot',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Right',
         location: 'Forearm',
         troubleshootDevice: 'IV',
-        troubleshootingNotes: 'No blood return; repositioned and flushed.',
-        capChanged: null,
+        notes: 'No blood return; repositioned and flushed.',
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
@@ -258,11 +250,11 @@ describe('PDF report', () => {
     expect(html).toContain('<th>Side</th><td>Right</td>');
     expect(html).toContain('<th>Location</th><td>Forearm</td>');
     expect(html).toContain(
-      '<th>Troubleshooting notes</th><td>No blood return; repositioned and flushed.</td>',
+      '<th>Notes</th><td>No blood return; repositioned and flushed.</td>',
     );
   });
 
-  it('includes the Dressing Change cap answer', () => {
+  it('includes entered supply quantities', () => {
     const html = buildReportHtml({
       profile: { name: 'Demo Clinician', credentials: 'RN' },
       client: {
@@ -274,14 +266,20 @@ describe('PDF report', () => {
         task: 'Dressing Change',
         size: null,
         catheterLength: null,
-        attempts: null,
         side: 'Left',
         location: 'Port',
-        capChanged: 'No',
+        supplies: {
+          'Supplies: Port Access': '1',
+          'Supplies: Dressing': '2',
+          'Supplies: IV': '',
+        },
       },
       completedAt: new Date('2026-09-01T12:00:00Z'),
     });
 
-    expect(html).toContain('<th>Cap change</th><td>No</td>');
+    expect(html).toContain('<th>Supplies: Port Access</th><td>1</td>');
+    expect(html).toContain('<th>Supplies: Dressing</th><td>2</td>');
+    expect(html).not.toContain('<th>Supplies: IV</th>');
+    expect(html).not.toContain('<th>Cap change</th>');
   });
 });

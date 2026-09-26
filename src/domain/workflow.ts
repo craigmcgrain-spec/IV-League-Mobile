@@ -1,7 +1,6 @@
 import type {
   Client,
   Procedure,
-  ProcedureAttempts,
   ProcedureLocation,
   ProcedureTask,
 } from '../types';
@@ -22,10 +21,15 @@ export const TASKS = [
   'Troubleshoot',
 ] as const;
 export const GAUGES = ['24ga', '22ga', '20ga', '18ga', '16ga'] as const;
-export const ATTEMPT_OPTIONS = ['1', '2', '3', '4', '5+'] as const;
 export const SIDES = ['Right', 'Left'] as const;
 export const TROUBLESHOOT_DEVICES = ['IV', 'Midline', 'PICC'] as const;
-export const YES_NO_OPTIONS = ['Yes', 'No'] as const;
+export const SUPPLIES = [
+  'Supplies: IV',
+  'Supplies: Midline',
+  'Supplies: PICC',
+  'Supplies: Port Access',
+  'Supplies: Dressing',
+] as const;
 const STANDARD_LOCATIONS = ['Hand', 'Wrist', 'Forearm', 'Antecubital', 'Upper Arm'] as const;
 const DRESSING_CHANGE_LOCATIONS = [...STANDARD_LOCATIONS, 'Port'] as const;
 const PORT_ACCESS_LOCATIONS = ['Chest'] as const;
@@ -82,17 +86,6 @@ export function needsCatheterLength(task: ProcedureTask | null): boolean {
   return task === 'PICC Insertion';
 }
 
-export function needsAttempts(task: ProcedureTask | null): boolean {
-  return task === 'IV Insertion'
-    || task === 'Midline Insertion'
-    || task === 'PICC Insertion'
-    || task === 'Blood Draw';
-}
-
-export function defaultAttemptsForTask(task: ProcedureTask | null): ProcedureAttempts | null {
-  return needsAttempts(task) ? '1' : null;
-}
-
 export function needsProcedureDetails(task: ProcedureTask | null): boolean {
   return task !== null;
 }
@@ -101,8 +94,17 @@ export function needsTroubleshootDetails(task: ProcedureTask | null): boolean {
   return task === 'Troubleshoot';
 }
 
-export function needsCapChange(task: ProcedureTask | null): boolean {
-  return task === 'Dressing Change';
+export function supplyLabel(supply: string): string {
+  return supply.replace(/^Supplies:\s*/, '');
+}
+
+export function parseSupplyQuantity(value: string | null | undefined): number | null {
+  const trimmed = value?.trim() ?? '';
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function locationsForTask(task: ProcedureTask | null): readonly ProcedureLocation[] {
@@ -131,21 +133,23 @@ export function validateProcedure(procedure: Procedure): string[] {
   if (!needsProcedureDetails(procedure.task)) {
     return [];
   }
+  const invalidSupplies = Object.entries(procedure.supplies ?? {})
+    .filter(([, value]) => value.trim() !== '' && parseSupplyQuantity(value) === null)
+    .map(([supply]) => `supplies quantity for ${supplyLabel(supply)}`);
   return [
     needsCatheterSize(procedure.task) && !procedure.size ? 'size' : '',
     needsCatheterLength(procedure.task) && !procedure.catheterLength?.trim() ? 'catheter length' : '',
     needsTroubleshootDetails(procedure.task) && !procedure.troubleshootDevice
       ? 'device type'
       : '',
-    needsTroubleshootDetails(procedure.task) && !procedure.troubleshootingNotes?.trim()
+    needsTroubleshootDetails(procedure.task) && !procedure.notes?.trim()
       ? 'troubleshooting notes'
       : '',
-    needsCapChange(procedure.task) && !procedure.capChanged ? 'cap change' : '',
-    needsAttempts(procedure.task) && !procedure.attempts ? 'number of attempts' : '',
     !procedure.side ? 'side' : '',
     !procedure.location || !locationsForTask(procedure.task).includes(procedure.location)
       ? 'location'
       : '',
+    ...invalidSupplies,
   ].filter(Boolean);
 }
 

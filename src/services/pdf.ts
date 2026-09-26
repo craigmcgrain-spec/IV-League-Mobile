@@ -3,12 +3,12 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 import {
-  needsAttempts,
-  needsCapChange,
   needsCatheterLength,
   needsCatheterSize,
   needsProcedureDetails,
   needsTroubleshootDetails,
+  parseSupplyQuantity,
+  SUPPLIES,
 } from '../domain/workflow';
 import {
   cleanupSharedPdfExports,
@@ -33,6 +33,10 @@ function row(label: string, value: string): string {
 
 export function buildReportHtml(record: CompletionRecord): string {
   const { profile, client, procedure, completedAt } = record;
+  const supplies = SUPPLIES.map((supply) => {
+    const quantity = parseSupplyQuantity(procedure.supplies?.[supply]);
+    return quantity ? row(supply, String(quantity)) : '';
+  }).join('');
   const details = [
     needsCatheterSize(procedure.task) ? row('Size', procedure.size ?? '') : '',
     needsCatheterLength(procedure.task)
@@ -43,11 +47,8 @@ export function buildReportHtml(record: CompletionRecord): string {
       : '',
     needsProcedureDetails(procedure.task) ? row('Side', procedure.side ?? '') : '',
     needsProcedureDetails(procedure.task) ? row('Location', procedure.location ?? '') : '',
-    needsCapChange(procedure.task) ? row('Cap change', procedure.capChanged ?? '') : '',
-    needsTroubleshootDetails(procedure.task)
-      ? row('Troubleshooting notes', procedure.troubleshootingNotes ?? '')
-      : '',
-    needsAttempts(procedure.task) ? row('Number of attempts', procedure.attempts ?? '') : '',
+    procedure.notes?.trim() ? row('Notes', procedure.notes.trim()) : '',
+    supplies,
   ].join('');
 
   return `<!doctype html>
